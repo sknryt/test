@@ -141,6 +141,45 @@ div[data-testid="stForm"], div[data-testid="stExpander"] {
     padding-bottom: 0.3rem;
 }
 
+/* ページヘッダー（アイコンバッジ＋タイトル＋サブタイトル） */
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 0.2rem 0 1.5rem 0;
+    padding: 1.1rem 1.4rem;
+    background: linear-gradient(120deg, rgba(99, 102, 241, 0.20) 0%, rgba(56, 189, 248, 0.08) 55%, rgba(15, 23, 42, 0) 100%);
+    border: 1px solid rgba(129, 140, 248, 0.3);
+    border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+}
+.page-header-icon {
+    flex-shrink: 0;
+    font-size: 1.8rem;
+    width: 3.4rem;
+    height: 3.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+    border-radius: 12px;
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.45);
+}
+.page-header-title {
+    font-size: 1.65rem;
+    font-weight: 800;
+    line-height: 1.25;
+    background: linear-gradient(90deg, #e0e7ff 0%, #a5b4fc 70%, #c7d2fe 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.page-header-sub {
+    color: #94a3b8;
+    font-size: 0.85rem;
+    margin-top: 0.2rem;
+}
+
 /* セクション見出し（左のアクセントバー） */
 [data-testid="stMain"] h2, .block-container h2,
 [data-testid="stMain"] h3, .block-container h3 {
@@ -217,6 +256,18 @@ div[data-testid="stExpander"] summary {
 ::-webkit-scrollbar-thumb:hover { background: #475569; }
 </style>
 """, unsafe_allow_html=True)
+
+
+# ─── 共通: ページヘッダー ─────────────────────────────────────────────────────
+def page_header(icon: str, title: str, subtitle: str = ""):
+    sub_html = f'<div class="page-header-sub">{subtitle}</div>' if subtitle else ""
+    st.markdown(
+        f'<div class="page-header">'
+        f'<div class="page-header-icon">{icon}</div>'
+        f'<div><div class="page-header-title">{title}</div>{sub_html}</div>'
+        f"</div>",
+        unsafe_allow_html=True,
+    )
 
 
 # ─── ページ: ログイン ─────────────────────────────────────────────────────────
@@ -320,10 +371,8 @@ def show_auth():
 
 # ─── ページ: 日報提出 ─────────────────────────────────────────────────────────
 def show_submit():
-    st.title("📝 日報提出")
-
     current_user = st.session_state.get("username", "")
-    st.caption(f"提出者: {current_user}")
+    page_header("📝", "日報提出", f"提出者: {current_user}　—　今日の業務内容を記録しましょう")
 
     # 直前の提出成功メッセージ（フォームクリア後の再実行で表示）
     flash = st.session_state.pop("submit_flash", None)
@@ -405,10 +454,11 @@ def show_submit():
 
 # ─── ページ: 一覧・検索 ───────────────────────────────────────────────────────
 def show_list():
-    st.title("📋 一覧・検索")
-
     current_user = st.session_state.get("username", "")
     is_admin = st.session_state.get("is_admin", False)
+
+    sub = "チーム全体の日報を閲覧・検索できます" if is_admin else "自分の日報を閲覧・検索できます"
+    page_header("📋", "一覧・検索", sub)
 
     if is_admin:
         members = db.get_members()
@@ -523,7 +573,7 @@ def show_list():
 
 # ─── ページ: 管理者機能 ───────────────────────────────────────────────────────
 def show_admin():
-    st.title("👔 管理者機能")
+    page_header("👔", "管理者機能", "提出状況の確認とメンバー・アカウントの管理")
 
     # 1. 本日の提出状況（一般ユーザーのみ対象）
     st.subheader("📊 本日の提出状況")
@@ -695,7 +745,7 @@ def show_admin():
 
 # ─── ページ: エクスポート・週報生成 ──────────────────────────────────────────
 def show_export():
-    st.title("📊 エクスポート・週報生成")
+    page_header("📊", "エクスポート・週報生成", "日報データの出力と週報の自動作成")
 
     current_user = st.session_state.get("username", "")
     is_admin = st.session_state.get("is_admin", False)
@@ -849,7 +899,7 @@ def show_export():
 
 # ─── ページ: 設定 ─────────────────────────────────────────────────────────────
 def show_settings():
-    st.title("⚙️ 設定")
+    page_header("⚙️", "設定", "アカウント設定の変更")
 
     current_user = st.session_state.get("username", "")
 
