@@ -39,17 +39,17 @@ header[data-testid="stHeader"] {
     background: transparent;
 }
 
-/* アプリ背景（カードが映える淡いグレー） */
+/* アプリ背景（目に優しいダークネイビー） */
 .stApp {
-    background: #f4f6fb;
+    background: #0f172a;
 }
 
 /* サイドバー */
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #312e81 0%, #4f46e5 60%, #6366f1 100%);
+    background: linear-gradient(180deg, #1e1b4b 0%, #312e81 70%, #3730a3 100%);
 }
 section[data-testid="stSidebar"] * {
-    color: #ffffff !important;
+    color: #f1f5f9 !important;
 }
 section[data-testid="stSidebar"] [role="radiogroup"] label {
     border-radius: 8px;
@@ -57,15 +57,25 @@ section[data-testid="stSidebar"] [role="radiogroup"] label {
     transition: background 0.15s ease;
 }
 section[data-testid="stSidebar"] [role="radiogroup"] label:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.12);
 }
 section[data-testid="stSidebar"] hr {
-    border-color: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 section[data-testid="stSidebar"] [data-testid="stMetric"] {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 10px;
     padding: 0.5rem;
+}
+/* サイドバーのボタン（ログアウト）を常に視認できるように */
+section[data-testid="stSidebar"] .stButton > button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    color: #ffffff !important;
+}
+section[data-testid="stSidebar"] .stButton > button:hover {
+    background: rgba(255, 255, 255, 0.22);
+    border-color: #ffffff;
 }
 
 /* ボタン */
@@ -76,42 +86,43 @@ section[data-testid="stSidebar"] [data-testid="stMetric"] {
 }
 .stButton > button:hover, .stFormSubmitButton > button:hover, .stDownloadButton > button:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+    box-shadow: 0 4px 12px rgba(129, 140, 248, 0.35);
 }
 .stButton > button[kind="primary"], .stFormSubmitButton > button[kind="primary"] {
     background: linear-gradient(90deg, #4f46e5 0%, #6366f1 100%);
     border: none;
+    color: #ffffff;
 }
 
 /* フォーム・カード風コンテナ */
 div[data-testid="stForm"], div[data-testid="stExpander"] {
-    background: #ffffff;
-    border: 1px solid #e2e8f0 !important;
+    background: #1e293b;
+    border: 1px solid #334155 !important;
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
 /* 日報カード */
 .report-card {
-    background: #f1f5f9;
-    border-left: 4px solid #6366f1;
+    background: #1e293b;
+    border-left: 4px solid #818cf8;
     padding: 1rem 1.2rem;
     margin: 0.5rem 0 1rem 0;
     border-radius: 0 10px 10px 0;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* バッジ */
-.badge-ok  { color: #16a34a; font-weight: bold; font-size: 1.05rem; }
-.badge-ng  { color: #dc2626; font-weight: bold; font-size: 1.05rem; }
+.badge-ok  { color: #4ade80; font-weight: bold; font-size: 1.05rem; }
+.badge-ng  { color: #f87171; font-weight: bold; font-size: 1.05rem; }
 
 /* メインタイトル（グラデーション文字） */
 [data-testid="stMain"] h1, .block-container h1 {
-    background: linear-gradient(90deg, #4f46e5 0%, #6366f1 60%, #818cf8 100%);
+    background: linear-gradient(90deg, #a5b4fc 0%, #818cf8 60%, #c7d2fe 100%);
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    color: #4f46e5;
+    color: #a5b4fc;
     font-weight: 800;
     padding-bottom: 0.3rem;
 }
@@ -119,13 +130,13 @@ div[data-testid="stForm"], div[data-testid="stExpander"] {
 /* セクション見出し */
 [data-testid="stMain"] h2, .block-container h2,
 [data-testid="stMain"] h3, .block-container h3 {
-    border-bottom: 2px solid #e2e8f0;
+    border-bottom: 2px solid #334155;
     padding-bottom: 0.4rem;
 }
 
 /* データフレーム */
 [data-testid="stDataFrame"] {
-    border: 1px solid #e2e8f0;
+    border: 1px solid #334155;
     border-radius: 10px;
     overflow: hidden;
 }
@@ -231,7 +242,7 @@ def show_auth():
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<p style="text-align:center; color:#64748b; margin-bottom:1.5rem;">'
+        '<p style="text-align:center; color:#94a3b8; margin-bottom:1.5rem;">'
         "チームの日報を、もっとスマートに。</p>",
         unsafe_allow_html=True,
     )
@@ -254,29 +265,38 @@ def show_submit():
     current_user = st.session_state.get("username", "")
     st.caption(f"提出者: {current_user}")
 
-    with st.form("report_form", clear_on_submit=True):
+    # 直前の提出成功メッセージ（フォームクリア後の再実行で表示）
+    flash = st.session_state.pop("submit_flash", None)
+    if flash:
+        st.success(flash)
+        st.balloons()
+
+    with st.form("report_form"):
         col1, col2, col3 = st.columns(3)
         with col1:
-            report_date = st.date_input("日付", value=date.today())
+            report_date = st.date_input("日付", value=date.today(), key="sub_date")
         with col2:
-            start_time_input = st.time_input("⏰ 開始時刻", value=time(9, 0), step=900)
+            start_time_input = st.time_input("⏰ 開始時刻", value=time(9, 0), step=900, key="sub_start")
         with col3:
-            end_time_input = st.time_input("⏰ 終了時刻", value=time(18, 0), step=900)
+            end_time_input = st.time_input("⏰ 終了時刻", value=time(18, 0), step=900, key="sub_end")
 
         tasks = st.text_area(
-            "✅ 今日やったこと",
+            "✅ 今日やったこと（必須）",
             height=130,
             placeholder="・会議の議事録作成\n・〇〇機能の実装\n・△△の調査・確認",
+            key="sub_tasks",
         )
         tomorrow_plan = st.text_area(
-            "📅 明日の予定",
+            "📅 明日の予定（必須）",
             height=100,
             placeholder="・〇〇のレビュー依頼\n・△△のテスト実施",
+            key="sub_plan",
         )
         impressions = st.text_area(
             "💬 所感・連絡事項（任意）",
             height=80,
             placeholder="気になったこと、困っていること、共有事項など",
+            key="sub_imp",
         )
 
         submitted = st.form_submit_button("提出する", type="primary", use_container_width=True)
@@ -285,11 +305,16 @@ def show_submit():
         return
 
     name = current_user
+    missing = []
     if not tasks.strip():
-        st.error("「今日やったこと」を入力してください。")
-        return
+        missing.append("今日やったこと")
     if not tomorrow_plan.strip():
-        st.error("「明日の予定」を入力してください。")
+        missing.append("明日の予定")
+    if missing:
+        st.error(
+            f"⚠️ 未入力の項目があります: **{'・'.join(missing)}** を入力してください。"
+            "（所感・連絡事項は未入力でも提出できます）"
+        )
         return
 
     start_dt = datetime.combine(date.today(), start_time_input)
@@ -299,15 +324,23 @@ def show_submit():
     work_hours = round((end_dt - start_dt).total_seconds() / 3600, 2)
 
     date_str = report_date.strftime("%Y-%m-%d")
-    if db.has_submitted(name, date_str):
-        st.warning(f"⚠️ {name} さんは {report_date:%Y/%m/%d} の日報を既に提出しています。追加提出として保存します。")
+    duplicate = db.has_submitted(name, date_str)
 
     db.save_report(
         date_str, name, tasks, tomorrow_plan, impressions, work_hours,
         start_time_input.strftime("%H:%M"), end_time_input.strftime("%H:%M"),
     )
-    st.success(f"✅ {name} さんの日報（{report_date:%Y/%m/%d}）を提出しました！　勤務時間: {start_time_input:%H:%M}〜{end_time_input:%H:%M}（{work_hours}h）")
-    st.balloons()
+    msg = (
+        f"✅ {name} さんの日報（{report_date:%Y/%m/%d}）を提出しました！　"
+        f"勤務時間: {start_time_input:%H:%M}〜{end_time_input:%H:%M}（{work_hours}h）"
+    )
+    if duplicate:
+        msg += "　※同日の日報があったため追加提出として保存しました。"
+    st.session_state.submit_flash = msg
+    # 成功時のみフォームをクリア（エラー時は入力を保持）
+    for k in ("sub_tasks", "sub_plan", "sub_imp"):
+        st.session_state.pop(k, None)
+    st.rerun()
 
 
 # ─── ページ: 一覧・検索 ───────────────────────────────────────────────────────
@@ -432,15 +465,18 @@ def show_list():
 def show_admin():
     st.title("👔 管理者機能")
 
-    # 1. 本日の提出状況
+    # 1. 本日の提出状況（一般ユーザーのみ対象）
     st.subheader("📊 本日の提出状況")
+    st.caption("一般ユーザーのみを対象としています（管理者は含まれません）。")
 
     today_str = date.today().strftime("%Y-%m-%d")
-    members = db.get_members()
+    users_df = db.get_users()
+    admin_users = set(users_df.loc[users_df["is_admin"] == 1, "username"])
+    members = [m for m in db.get_members() if m not in admin_users]
     submitted_today = set(db.get_today_submitters(today_str))
 
     if not members:
-        st.info("メンバーが未登録です。下の「メンバー管理」から追加してください。")
+        st.info("一般ユーザーのメンバーがいません。下の「メンバー管理」から追加してください。")
     else:
         n_cols = min(len(members), 5)
         cols = st.columns(n_cols)
@@ -456,28 +492,6 @@ def show_admin():
             st.warning(f"本日未提出: **{'、'.join(not_submitted)}**")
         else:
             st.success("🎉 全員提出済みです！")
-
-    st.divider()
-
-    # 1.5 未提出者リマインド
-    st.subheader("🔔 未提出者リマインドメッセージ")
-
-    if not members:
-        st.info("メンバーが登録されていません。")
-    elif not not_submitted:
-        st.success(f"✅ 本日（{date.today():%Y/%m/%d}）は全員提出済みです！")
-    else:
-        st.warning(f"本日未提出: **{'、'.join(not_submitted)}**")
-        reminder = (
-            f"【日報リマインド】\n\n"
-            f"お疲れ様です。\n"
-            f"本日（{date.today():%Y/%m/%d}）の日報がまだ提出されていない方がいます。\n\n"
-            f"未提出: {', '.join(not_submitted)}\n\n"
-            f"お手すきの際に提出をお願いします。\n"
-            f"提出URL: （URLをここに記入）"
-        )
-        st.text_area("リマインドメッセージ（Slack/メール用）", reminder, height=180)
-        st.caption("上記をコピーして Slack・メールなどで送付してください。")
 
     st.divider()
 
@@ -553,23 +567,29 @@ def show_admin():
 
     st.divider()
 
-    # 3. メンバー管理
+    # 3. メンバー管理（アカウント作成）
     st.subheader("👥 メンバー管理")
+    st.caption("メンバーを追加すると、ログイン用アカウントも同時に作成されます。")
 
-    with st.form("add_member_form"):
-        col1, col2 = st.columns([4, 1])
+    with st.form("add_member_form", clear_on_submit=True):
+        col1, col2 = st.columns(2)
         with col1:
-            new_member = st.text_input("新しいメンバー名", placeholder="山田 太郎", label_visibility="collapsed")
+            new_member = st.text_input("メンバー名", placeholder="山田 太郎")
         with col2:
-            add_btn = st.form_submit_button("追加", type="primary", use_container_width=True)
+            new_member_pw = st.text_input("初期パスワード（8文字以上）", type="password")
+        add_btn = st.form_submit_button("アカウントを作成して追加", type="primary", use_container_width=True)
 
     if add_btn:
-        if new_member.strip():
-            db.add_member(new_member.strip())
-            st.success(f"「{new_member.strip()}」を追加しました。")
-            st.rerun()
-        else:
+        member_name = new_member.strip()
+        if not member_name:
             st.error("名前を入力してください。")
+        elif len(new_member_pw) < 8:
+            st.error("パスワードは8文字以上で設定してください。")
+        elif not db.create_user(member_name, new_member_pw, is_admin=False):
+            st.error("そのユーザー名は既に登録されています。")
+        else:
+            db.add_member(member_name)
+            st.success(f"✅ 「{member_name}」のアカウントを作成し、メンバーに追加しました。")
 
     current_members = db.get_members()
     if current_members:
@@ -694,10 +714,14 @@ def show_export():
     c1, c2 = st.columns(2)
     with c1:
         if is_admin:
-            if members:
-                weekly_name = st.selectbox("対象メンバー", members, key="wn")
+            users_df = db.get_users()
+            admin_users = set(users_df.loc[users_df["is_admin"] == 1, "username"])
+            weekly_members = [m for m in members if m not in admin_users]
+            if weekly_members:
+                weekly_name = st.selectbox("対象メンバー（一般ユーザーのみ）", weekly_members, key="wn")
             else:
-                weekly_name = st.text_input("対象メンバー名", placeholder="山田 太郎", key="wn")
+                weekly_name = None
+                st.info("一般ユーザーのメンバーがいません。")
         else:
             weekly_name = current_user
             st.text_input("対象メンバー", value=current_user, disabled=True, key="wn")
