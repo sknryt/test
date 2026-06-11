@@ -54,6 +54,10 @@ section[data-testid="stSidebar"] [data-testid="stMetric"] {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
 }
+.stButton > button[kind="primary"], .stFormSubmitButton > button[kind="primary"] {
+    background: linear-gradient(90deg, #4f46e5 0%, #6366f1 100%);
+    border: none;
+}
 
 /* フォーム・カード風コンテナ */
 div[data-testid="stForm"], div[data-testid="stExpander"] {
@@ -76,6 +80,36 @@ div[data-testid="stForm"], div[data-testid="stExpander"] {
 /* バッジ */
 .badge-ok  { color: #16a34a; font-weight: bold; font-size: 1.05rem; }
 .badge-ng  { color: #dc2626; font-weight: bold; font-size: 1.05rem; }
+
+/* メインタイトル（グラデーション文字） */
+[data-testid="stMain"] h1, .block-container h1 {
+    background: linear-gradient(90deg, #4f46e5 0%, #6366f1 60%, #818cf8 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: #4f46e5;
+    font-weight: 800;
+    padding-bottom: 0.3rem;
+}
+
+/* セクション見出し */
+[data-testid="stMain"] h2, .block-container h2,
+[data-testid="stMain"] h3, .block-container h3 {
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 0.4rem;
+}
+
+/* データフレーム */
+[data-testid="stDataFrame"] {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* メトリクス数値を強調 */
+[data-testid="stMetricValue"] {
+    font-weight: 800;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -233,18 +267,32 @@ def show_submit():
 def show_list():
     st.title("📋 一覧・検索")
 
-    members = db.get_members()
+    current_user = st.session_state.get("username", "")
+    is_admin = st.session_state.get("is_admin", False)
 
-    with st.expander("🔍 検索フィルター", expanded=True):
-        c1, c2, c3 = st.columns([2, 2, 3])
-        with c1:
-            date_from = st.date_input("開始日", value=date.today() - timedelta(days=30), key="lf")
-            date_to   = st.date_input("終了日", value=date.today(), key="lt")
-        with c2:
-            name_filter = st.selectbox("名前", ["すべて"] + members, key="ln")
-        with c3:
-            keyword = st.text_input("キーワード検索", placeholder="本文を横断検索", key="lk")
-            st.caption("「今日やったこと」「明日の予定」「所感」を同時に検索します")
+    if is_admin:
+        members = db.get_members()
+        with st.expander("🔍 検索フィルター", expanded=True):
+            c1, c2, c3 = st.columns([2, 2, 3])
+            with c1:
+                date_from = st.date_input("開始日", value=date.today() - timedelta(days=30), key="lf")
+                date_to   = st.date_input("終了日", value=date.today(), key="lt")
+            with c2:
+                name_filter = st.selectbox("名前", ["すべて"] + members, key="ln")
+            with c3:
+                keyword = st.text_input("キーワード検索", placeholder="本文を横断検索", key="lk")
+                st.caption("「今日やったこと」「明日の予定」「所感」を同時に検索します")
+    else:
+        name_filter = current_user
+        with st.expander("🔍 検索フィルター", expanded=True):
+            st.caption("🔒 自分の日報のみ表示されます")
+            c1, c2 = st.columns([2, 3])
+            with c1:
+                date_from = st.date_input("開始日", value=date.today() - timedelta(days=30), key="lf")
+                date_to   = st.date_input("終了日", value=date.today(), key="lt")
+            with c2:
+                keyword = st.text_input("キーワード検索", placeholder="本文を横断検索", key="lk")
+                st.caption("「今日やったこと」「明日の予定」「所感」を同時に検索します")
 
     df = db.get_reports(
         date_from=date_from,
@@ -361,6 +409,28 @@ def show_admin():
             st.warning(f"本日未提出: **{'、'.join(not_submitted)}**")
         else:
             st.success("🎉 全員提出済みです！")
+
+    st.divider()
+
+    # 1.5 未提出者リマインド
+    st.subheader("🔔 未提出者リマインドメッセージ")
+
+    if not members:
+        st.info("メンバーが登録されていません。")
+    elif not not_submitted:
+        st.success(f"✅ 本日（{date.today():%Y/%m/%d}）は全員提出済みです！")
+    else:
+        st.warning(f"本日未提出: **{'、'.join(not_submitted)}**")
+        reminder = (
+            f"【日報リマインド】\n\n"
+            f"お疲れ様です。\n"
+            f"本日（{date.today():%Y/%m/%d}）の日報がまだ提出されていない方がいます。\n\n"
+            f"未提出: {', '.join(not_submitted)}\n\n"
+            f"お手すきの際に提出をお願いします。\n"
+            f"提出URL: （URLをここに記入）"
+        )
+        st.text_area("リマインドメッセージ（Slack/メール用）", reminder, height=180)
+        st.caption("上記をコピーして Slack・メールなどで送付してください。")
 
     st.divider()
 
@@ -500,7 +570,9 @@ def show_admin():
 def show_export():
     st.title("📊 エクスポート・週報生成")
 
-    members = db.get_members()
+    current_user = st.session_state.get("username", "")
+    is_admin = st.session_state.get("is_admin", False)
+    members = db.get_members() if is_admin else [current_user]
 
     # 1. データエクスポート
     st.subheader("📁 データエクスポート")
@@ -510,7 +582,11 @@ def show_export():
         exp_from = st.date_input("開始日", value=date.today() - timedelta(days=30), key="ef")
         exp_to   = st.date_input("終了日", value=date.today(), key="et")
     with c2:
-        exp_name = st.selectbox("メンバー絞り込み", ["すべて"] + members, key="en")
+        if is_admin:
+            exp_name = st.selectbox("メンバー絞り込み", ["すべて"] + members, key="en")
+        else:
+            exp_name = current_user
+            st.text_input("対象", value=current_user, disabled=True, key="en")
 
     df = db.get_reports(
         date_from=exp_from,
@@ -561,10 +637,14 @@ def show_export():
 
     c1, c2 = st.columns(2)
     with c1:
-        if members:
-            weekly_name = st.selectbox("対象メンバー", members, key="wn")
+        if is_admin:
+            if members:
+                weekly_name = st.selectbox("対象メンバー", members, key="wn")
+            else:
+                weekly_name = st.text_input("対象メンバー名", placeholder="山田 太郎", key="wn")
         else:
-            weekly_name = st.text_input("対象メンバー名", placeholder="山田 太郎", key="wn")
+            weekly_name = current_user
+            st.text_input("対象メンバー", value=current_user, disabled=True, key="wn")
     with c2:
         today = date.today()
         last_monday = today - timedelta(days=today.weekday())
@@ -625,32 +705,6 @@ def show_export():
             mime="text/plain",
             use_container_width=True,
         )
-
-    st.divider()
-
-    # 3. 未提出者リマインド
-    st.subheader("🔔 未提出者リマインドメッセージ")
-
-    today_str = date.today().strftime("%Y-%m-%d")
-    submitted_today = set(db.get_today_submitters(today_str))
-    not_submitted = [m for m in members if m not in submitted_today]
-
-    if not members:
-        st.info("メンバーが登録されていません。")
-    elif not not_submitted:
-        st.success(f"✅ 本日（{date.today():%Y/%m/%d}）は全員提出済みです！")
-    else:
-        st.warning(f"本日未提出: **{'、'.join(not_submitted)}**")
-        reminder = (
-            f"【日報リマインド】\n\n"
-            f"お疲れ様です。\n"
-            f"本日（{date.today():%Y/%m/%d}）の日報がまだ提出されていない方がいます。\n\n"
-            f"未提出: {', '.join(not_submitted)}\n\n"
-            f"お手すきの際に提出をお願いします。\n"
-            f"提出URL: （URLをここに記入）"
-        )
-        st.text_area("リマインドメッセージ（Slack/メール用）", reminder, height=180)
-        st.caption("上記をコピーして Slack・メールなどで送付してください。")
 
 
 # ─── メイン ───────────────────────────────────────────────────────────────────
