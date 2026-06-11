@@ -39,9 +39,13 @@ header[data-testid="stHeader"] {
     background: transparent;
 }
 
-/* アプリ背景（目に優しいダークネイビー） */
+/* アプリ背景（ダークネイビー + ほのかなインディゴの光彩） */
 .stApp {
-    background: #0f172a;
+    background:
+        radial-gradient(900px 500px at 85% -10%, rgba(99, 102, 241, 0.22) 0%, rgba(15, 23, 42, 0) 60%),
+        radial-gradient(700px 400px at -10% 110%, rgba(56, 189, 248, 0.10) 0%, rgba(15, 23, 42, 0) 60%),
+        #0f172a;
+    background-attachment: fixed;
 }
 
 /* サイドバー */
@@ -51,13 +55,23 @@ section[data-testid="stSidebar"] {
 section[data-testid="stSidebar"] * {
     color: #f1f5f9 !important;
 }
+/* ナビゲーション（ラジオの丸を隠してメニュー風に） */
 section[data-testid="stSidebar"] [role="radiogroup"] label {
     border-radius: 8px;
-    padding: 0.35rem 0.6rem;
+    padding: 0.45rem 0.7rem;
     transition: background 0.15s ease;
+    width: 100%;
+}
+section[data-testid="stSidebar"] [role="radiogroup"] label > div:first-child {
+    display: none;
 }
 section[data-testid="stSidebar"] [role="radiogroup"] label:hover {
     background: rgba(255, 255, 255, 0.12);
+}
+section[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {
+    background: rgba(255, 255, 255, 0.18);
+    box-shadow: inset 3px 0 0 #c7d2fe;
+    font-weight: 700;
 }
 section[data-testid="stSidebar"] hr {
     border-color: rgba(255, 255, 255, 0.2);
@@ -127,11 +141,12 @@ div[data-testid="stForm"], div[data-testid="stExpander"] {
     padding-bottom: 0.3rem;
 }
 
-/* セクション見出し */
+/* セクション見出し（左のアクセントバー） */
 [data-testid="stMain"] h2, .block-container h2,
 [data-testid="stMain"] h3, .block-container h3 {
-    border-bottom: 2px solid #334155;
-    padding-bottom: 0.4rem;
+    border-left: 4px solid #6366f1;
+    padding-left: 0.6rem;
+    padding-bottom: 0.2rem;
 }
 
 /* データフレーム */
@@ -151,10 +166,55 @@ div[data-testid="stForm"], div[data-testid="stExpander"] {
     border-radius: 10px;
 }
 
-/* タブ・入力欄の角丸 */
-.stTextInput input, .stTextArea textarea, .stDateInput input, .stTimeInput input {
+/* 入力欄を常時視認できるように（枠線＋カードより暗い背景） */
+div[data-baseweb="input"],
+div[data-baseweb="textarea"],
+div[data-baseweb="select"] > div {
+    background: #0b1222 !important;
+    border: 1px solid #475569 !important;
     border-radius: 8px !important;
 }
+div[data-baseweb="input"] input,
+div[data-baseweb="textarea"] textarea,
+div[data-baseweb="select"] input {
+    background: transparent !important;
+    color: #e2e8f0 !important;
+}
+div[data-baseweb="input"]:focus-within,
+div[data-baseweb="textarea"]:focus-within,
+div[data-baseweb="select"] > div:focus-within {
+    border-color: #818cf8 !important;
+    box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.5);
+}
+
+/* ログイン等のカード（枠付きコンテナ） */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background: linear-gradient(180deg, #1e293b 0%, #182236 100%);
+    border: 1px solid #334155;
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* メインエリアの区切り線・セカンダリボタン */
+[data-testid="stMain"] hr {
+    border-color: #334155;
+}
+[data-testid="stMain"] .stButton > button[kind="secondary"] {
+    background: #1e293b;
+    border: 1px solid #475569;
+    color: #e2e8f0;
+}
+
+/* エクスパンダーの見出しを強調 */
+div[data-testid="stExpander"] summary {
+    font-weight: 600;
+}
+
+/* スクロールバー */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
 </style>
 """, unsafe_allow_html=True)
 
