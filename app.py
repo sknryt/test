@@ -1,5 +1,5 @@
 import io
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 
 import pandas as pd
 import plotly.express as px
@@ -20,90 +20,140 @@ db.init_db()
 
 st.markdown("""
 <style>
+/* サイドバー */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #4f46e5 0%, #6366f1 100%);
+}
+section[data-testid="stSidebar"] * {
+    color: #ffffff !important;
+}
+section[data-testid="stSidebar"] [role="radiogroup"] label {
+    border-radius: 8px;
+    padding: 0.35rem 0.6rem;
+    transition: background 0.15s ease;
+}
+section[data-testid="stSidebar"] [role="radiogroup"] label:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+section[data-testid="stSidebar"] hr {
+    border-color: rgba(255, 255, 255, 0.25);
+}
+section[data-testid="stSidebar"] [data-testid="stMetric"] {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 0.5rem;
+}
+
+/* ボタン */
+.stButton > button, .stFormSubmitButton > button, .stDownloadButton > button {
+    border-radius: 8px;
+    font-weight: 600;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.stButton > button:hover, .stFormSubmitButton > button:hover, .stDownloadButton > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+/* フォーム・カード風コンテナ */
+div[data-testid="stForm"], div[data-testid="stExpander"] {
+    background: #ffffff;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* 日報カード */
 .report-card {
-    background: #f0f4f8;
-    border-left: 4px solid #1f77b4;
+    background: #f1f5f9;
+    border-left: 4px solid #6366f1;
     padding: 1rem 1.2rem;
     margin: 0.5rem 0 1rem 0;
-    border-radius: 0 6px 6px 0;
+    border-radius: 0 10px 10px 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
-.badge-ok  { color: #28a745; font-weight: bold; font-size: 1.05rem; }
-.badge-ng  { color: #dc3545; font-weight: bold; font-size: 1.05rem; }
+
+/* バッジ */
+.badge-ok  { color: #16a34a; font-weight: bold; font-size: 1.05rem; }
+.badge-ng  { color: #dc2626; font-weight: bold; font-size: 1.05rem; }
 </style>
 """, unsafe_allow_html=True)
 
 
 # ─── ページ: ログイン ─────────────────────────────────────────────────────────
 def show_login():
-    st.subheader("🔐 ログイン")
+    with st.container(border=True):
+        st.subheader("🔐 ログイン")
 
-    if st.session_state.pop("register_success", False):
-        st.success("✅ 登録が完了しました。ログインしてください。")
+        if st.session_state.pop("register_success", False):
+            st.success("✅ 登録が完了しました。ログインしてください。")
 
-    with st.form("login_form"):
-        username = st.text_input("ユーザー名（氏名）")
-        password = st.text_input("パスワード", type="password")
-        submitted = st.form_submit_button("ログイン", type="primary", use_container_width=True)
+        with st.form("login_form"):
+            username = st.text_input("ユーザー名（氏名）")
+            password = st.text_input("パスワード", type="password")
+            submitted = st.form_submit_button("ログイン", type="primary", use_container_width=True)
 
-    if submitted:
-        username = username.strip()
-        if not username or not password:
-            st.error("ユーザー名とパスワードを入力してください。")
-        else:
-            user = db.verify_user(username, password)
-            if user is None:
-                st.error("ユーザー名またはパスワードが正しくありません。")
+        if submitted:
+            username = username.strip()
+            if not username or not password:
+                st.error("ユーザー名とパスワードを入力してください。")
             else:
-                st.session_state.logged_in = True
-                st.session_state.username = user["username"]
-                st.session_state.is_admin = user["is_admin"]
-                st.rerun()
+                user = db.verify_user(username, password)
+                if user is None:
+                    st.error("ユーザー名またはパスワードが正しくありません。")
+                else:
+                    st.session_state.logged_in = True
+                    st.session_state.username = user["username"]
+                    st.session_state.is_admin = user["is_admin"]
+                    st.rerun()
 
-    st.divider()
-    st.markdown("アカウントをお持ちでない方は")
-    if st.button("新規登録はこちら", use_container_width=True):
-        st.session_state.auth_page = "register"
-        st.rerun()
+        st.divider()
+        st.markdown("アカウントをお持ちでない方は")
+        if st.button("新規登録はこちら", use_container_width=True):
+            st.session_state.auth_page = "register"
+            st.rerun()
 
 
 # ─── ページ: 新規登録 ─────────────────────────────────────────────────────────
 def show_register():
-    st.subheader("📝 新規登録")
+    with st.container(border=True):
+        st.subheader("📝 新規登録")
 
-    with st.form("register_form"):
-        username = st.text_input("ユーザー名（氏名）", placeholder="山田 太郎")
-        password = st.text_input("パスワード", type="password")
-        password_confirm = st.text_input("パスワード（確認）", type="password")
-        submitted = st.form_submit_button("登録する", type="primary", use_container_width=True)
+        with st.form("register_form"):
+            username = st.text_input("ユーザー名（氏名）", placeholder="山田 太郎")
+            password = st.text_input("パスワード", type="password")
+            password_confirm = st.text_input("パスワード（確認）", type="password")
+            submitted = st.form_submit_button("登録する", type="primary", use_container_width=True)
 
-    if submitted:
-        username = username.strip()
-        if not username:
-            st.error("ユーザー名を入力してください。")
-        elif not password:
-            st.error("パスワードを入力してください。")
-        elif len(password) < 8:
-            st.error("パスワードは8文字以上で設定してください。")
-        elif password != password_confirm:
-            st.error("パスワードが一致しません。")
-        elif db.create_user(username, password, is_admin=False):
-            db.add_member(username)
-            st.session_state.register_success = True
+        if submitted:
+            username = username.strip()
+            if not username:
+                st.error("ユーザー名を入力してください。")
+            elif not password:
+                st.error("パスワードを入力してください。")
+            elif len(password) < 8:
+                st.error("パスワードは8文字以上で設定してください。")
+            elif password != password_confirm:
+                st.error("パスワードが一致しません。")
+            elif db.create_user(username, password, is_admin=False):
+                db.add_member(username)
+                st.session_state.register_success = True
+                st.session_state.auth_page = "login"
+                st.rerun()
+            else:
+                st.error("そのユーザー名は既に登録されています。")
+
+        st.divider()
+        st.markdown("既にアカウントをお持ちの方は")
+        if st.button("ログイン画面に戻る", use_container_width=True):
             st.session_state.auth_page = "login"
             st.rerun()
-        else:
-            st.error("そのユーザー名は既に登録されています。")
-
-    st.divider()
-    st.markdown("既にアカウントをお持ちの方は")
-    if st.button("ログイン画面に戻る", use_container_width=True):
-        st.session_state.auth_page = "login"
-        st.rerun()
 
 
 # ─── 未ログイン時のトップ画面 ──────────────────────────────────────────────────
 def show_auth():
     st.title("📋 日報管理システム")
+    st.caption("チームの日報を、もっとスマートに。")
 
     if "auth_page" not in st.session_state:
         st.session_state.auth_page = "login"
@@ -120,23 +170,17 @@ def show_auth():
 def show_submit():
     st.title("📝 日報提出")
 
-    members = db.get_members()
     current_user = st.session_state.get("username", "")
+    st.caption(f"提出者: {current_user}")
 
     with st.form("report_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             report_date = st.date_input("日付", value=date.today())
         with col2:
-            if members:
-                input_mode = st.radio("名前", ["一覧から選択", "直接入力"], horizontal=True)
-                if input_mode == "一覧から選択":
-                    default_index = members.index(current_user) if current_user in members else 0
-                    name = st.selectbox("メンバー", members, index=default_index, label_visibility="collapsed")
-                else:
-                    name = st.text_input("名前を入力", value=current_user, placeholder="山田 太郎", label_visibility="collapsed")
-            else:
-                name = st.text_input("名前", value=current_user, placeholder="山田 太郎")
+            start_time_input = st.time_input("⏰ 開始時刻", value=time(9, 0), step=900)
+        with col3:
+            end_time_input = st.time_input("⏰ 終了時刻", value=time(18, 0), step=900)
 
         tasks = st.text_area(
             "✅ 今日やったこと",
@@ -153,20 +197,13 @@ def show_submit():
             height=80,
             placeholder="気になったこと、困っていること、共有事項など",
         )
-        work_hours = st.number_input(
-            "⏱️ 業務実績時間（h）",
-            min_value=0.0, max_value=24.0, value=8.0, step=0.25,
-        )
 
         submitted = st.form_submit_button("提出する", type="primary", use_container_width=True)
 
     if not submitted:
         return
 
-    name = (name or "").strip()
-    if not name:
-        st.error("名前を入力してください。")
-        return
+    name = current_user
     if not tasks.strip():
         st.error("「今日やったこと」を入力してください。")
         return
@@ -174,12 +211,21 @@ def show_submit():
         st.error("「明日の予定」を入力してください。")
         return
 
+    start_dt = datetime.combine(date.today(), start_time_input)
+    end_dt = datetime.combine(date.today(), end_time_input)
+    if end_dt <= start_dt:
+        end_dt += timedelta(days=1)
+    work_hours = round((end_dt - start_dt).total_seconds() / 3600, 2)
+
     date_str = report_date.strftime("%Y-%m-%d")
     if db.has_submitted(name, date_str):
         st.warning(f"⚠️ {name} さんは {report_date:%Y/%m/%d} の日報を既に提出しています。追加提出として保存します。")
 
-    db.save_report(date_str, name, tasks, tomorrow_plan, impressions, work_hours)
-    st.success(f"✅ {name} さんの日報（{report_date:%Y/%m/%d}）を提出しました！")
+    db.save_report(
+        date_str, name, tasks, tomorrow_plan, impressions, work_hours,
+        start_time_input.strftime("%H:%M"), end_time_input.strftime("%H:%M"),
+    )
+    st.success(f"✅ {name} さんの日報（{report_date:%Y/%m/%d}）を提出しました！　勤務時間: {start_time_input:%H:%M}〜{end_time_input:%H:%M}（{work_hours}h）")
     st.balloons()
 
 
@@ -214,8 +260,12 @@ def show_list():
         return
 
     # テーブル表示用に長文を省略
-    display_df = df[["id", "date", "name", "tasks", "tomorrow_plan", "impressions", "work_hours", "created_at"]].copy()
-    display_df.columns = ["ID", "日付", "名前", "今日やったこと", "明日の予定", "所感", "実績時間(h)", "提出日時"]
+    df["勤務時間"] = df.apply(
+        lambda r: f"{r['start_time']}〜{r['end_time']}" if r["start_time"] and r["end_time"] else "-",
+        axis=1,
+    )
+    display_df = df[["id", "date", "name", "勤務時間", "tasks", "tomorrow_plan", "impressions", "work_hours", "created_at"]].copy()
+    display_df.columns = ["ID", "日付", "名前", "勤務時間", "今日やったこと", "明日の予定", "所感", "実績時間(h)", "提出日時"]
     for col in ["今日やったこと", "明日の予定", "所感"]:
         display_df[col] = display_df[col].apply(
             lambda x: (str(x)[:60] + "…") if len(str(x)) > 60 else str(x)
@@ -229,6 +279,7 @@ def show_list():
             "ID":     st.column_config.NumberColumn(width="small"),
             "日付":   st.column_config.TextColumn(width="small"),
             "名前":   st.column_config.TextColumn(width="small"),
+            "勤務時間": st.column_config.TextColumn(width="small"),
             "実績時間(h)": st.column_config.NumberColumn(width="small"),
             "提出日時": st.column_config.TextColumn(width="medium"),
         },
@@ -251,9 +302,14 @@ def show_list():
         return
 
     row = df[df["id"] == selected_id].iloc[0]
+    work_time_str = (
+        f"{row['start_time']}〜{row['end_time']}"
+        if row["start_time"] and row["end_time"] else "-"
+    )
     st.markdown(
         f'<div class="report-card">'
-        f'<b>日付:</b> {row["date"]} ／ <b>名前:</b> {row["name"]} ／ <b>実績時間:</b> {row["work_hours"]}h<br>'
+        f'<b>日付:</b> {row["date"]} ／ <b>名前:</b> {row["name"]} ／ '
+        f'<b>勤務時間:</b> {work_time_str}（{row["work_hours"]}h）<br>'
         f'<small>提出日時: {row["created_at"]}</small>'
         f"</div>",
         unsafe_allow_html=True,
@@ -483,7 +539,8 @@ def show_export():
             rename_map = {
                 "id": "ID", "date": "日付", "name": "名前",
                 "tasks": "今日やったこと", "tomorrow_plan": "明日の予定",
-                "impressions": "所感", "work_hours": "実績時間(h)", "created_at": "提出日時",
+                "impressions": "所感", "work_hours": "実績時間(h)",
+                "start_time": "開始時刻", "end_time": "終了時刻", "created_at": "提出日時",
             }
             with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
                 df.rename(columns=rename_map).to_excel(
@@ -539,8 +596,12 @@ def show_export():
             d = date.fromisoformat(row["date"])
             wd = WEEKDAY_JP[d.weekday()]
             total_hours += row["work_hours"]
+            work_time_str = (
+                f"{row['start_time']}〜{row['end_time']}"
+                if row["start_time"] and row["end_time"] else "-"
+            )
             lines += [
-                f"■ {d:%Y/%m/%d}（{wd}）　実績時間: {row['work_hours']}h",
+                f"■ {d:%Y/%m/%d}（{wd}）　勤務時間: {work_time_str}（{row['work_hours']}h）",
                 "",
                 "【今日やったこと】",
                 row["tasks"],

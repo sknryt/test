@@ -35,6 +35,8 @@ def init_db() -> None:
                 tomorrow_plan TEXT    NOT NULL,
                 impressions   TEXT    DEFAULT '',
                 work_hours    REAL    DEFAULT 0,
+                start_time    TEXT    DEFAULT '',
+                end_time      TEXT    DEFAULT '',
                 created_at    TEXT    DEFAULT (datetime('now', 'localtime'))
             );
             CREATE TABLE IF NOT EXISTS members (
@@ -52,11 +54,15 @@ def init_db() -> None:
         """)
         conn.commit()
 
-        # 既存DBに work_hours 列が無い場合は追加（マイグレーション）
+        # 既存DBに不足している列があれば追加（マイグレーション）
         cols = [r["name"] for r in conn.execute("PRAGMA table_info(reports)").fetchall()]
         if "work_hours" not in cols:
             conn.execute("ALTER TABLE reports ADD COLUMN work_hours REAL DEFAULT 0")
-            conn.commit()
+        if "start_time" not in cols:
+            conn.execute("ALTER TABLE reports ADD COLUMN start_time TEXT DEFAULT ''")
+        if "end_time" not in cols:
+            conn.execute("ALTER TABLE reports ADD COLUMN end_time TEXT DEFAULT ''")
+        conn.commit()
 
     # 初期管理者アカウントを作成（未登録の場合のみ）
     if not user_exists(DEFAULT_ADMIN_USERNAME):
@@ -65,12 +71,14 @@ def init_db() -> None:
 
 
 def save_report(date_str: str, name: str, tasks: str,
-                tomorrow_plan: str, impressions: str, work_hours: float = 0.0) -> None:
+                tomorrow_plan: str, impressions: str, work_hours: float = 0.0,
+                start_time: str = "", end_time: str = "") -> None:
     with _connect() as conn:
         conn.execute(
-            "INSERT INTO reports (date, name, tasks, tomorrow_plan, impressions, work_hours)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (date_str, name, tasks, tomorrow_plan, impressions, work_hours),
+            "INSERT INTO reports"
+            " (date, name, tasks, tomorrow_plan, impressions, work_hours, start_time, end_time)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (date_str, name, tasks, tomorrow_plan, impressions, work_hours, start_time, end_time),
         )
         conn.execute("INSERT OR IGNORE INTO members (name) VALUES (?)", (name,))
         conn.commit()
@@ -156,7 +164,7 @@ def get_submission_stats(start_date=None, end_date=None) -> pd.DataFrame:
 def get_weekly_reports(name: str, start_date, end_date) -> pd.DataFrame:
     with _connect() as conn:
         return pd.read_sql_query(
-            "SELECT date, tasks, tomorrow_plan, impressions, work_hours"
+            "SELECT date, tasks, tomorrow_plan, impressions, work_hours, start_time, end_time"
             " FROM reports"
             " WHERE name=? AND date BETWEEN ? AND ?"
             " ORDER BY date ASC",
