@@ -4,6 +4,7 @@ from datetime import date, datetime, time, timedelta
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from openpyxl.utils import get_column_letter
 
 import database as db
 
@@ -20,9 +21,32 @@ db.init_db()
 
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+
+/* フォント（日本語向け） */
+html, body, p, h1, h2, h3, h4, h5, h6, input, textarea, button, label, li, td, th {
+    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+}
+
+/* Streamlit のツールバー・フッター・メニューを非表示 */
+#MainMenu, footer,
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"] {
+    display: none !important;
+}
+header[data-testid="stHeader"] {
+    background: transparent;
+}
+
+/* アプリ背景（カードが映える淡いグレー） */
+.stApp {
+    background: #f4f6fb;
+}
+
 /* サイドバー */
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #4f46e5 0%, #6366f1 100%);
+    background: linear-gradient(180deg, #312e81 0%, #4f46e5 60%, #6366f1 100%);
 }
 section[data-testid="stSidebar"] * {
     color: #ffffff !important;
@@ -110,6 +134,16 @@ div[data-testid="stForm"], div[data-testid="stExpander"] {
 [data-testid="stMetricValue"] {
     font-weight: 800;
 }
+
+/* 通知・アラート */
+[data-testid="stAlert"] {
+    border-radius: 10px;
+}
+
+/* タブ・入力欄の角丸 */
+.stTextInput input, .stTextArea textarea, .stDateInput input, .stTimeInput input {
+    border-radius: 8px !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -186,8 +220,21 @@ def show_register():
 
 # ─── 未ログイン時のトップ画面 ──────────────────────────────────────────────────
 def show_auth():
-    st.title("📋 日報管理システム")
-    st.caption("チームの日報を、もっとスマートに。")
+    st.markdown(
+        '<div style="text-align:center; padding-top:1.5rem;">'
+        '<div style="font-size:3.5rem; line-height:1;">📋</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<h1 style="text-align:center; margin-bottom:0;">日報管理システム</h1>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<p style="text-align:center; color:#64748b; margin-bottom:1.5rem;">'
+        "チームの日報を、もっとスマートに。</p>",
+        unsafe_allow_html=True,
+    )
 
     if "auth_page" not in st.session_state:
         st.session_state.auth_page = "login"
@@ -461,7 +508,7 @@ def show_admin():
                 member_counts, x="name", y="提出回数",
                 title="メンバー別提出回数",
                 labels={"name": "メンバー"},
-                color="提出回数", color_continuous_scale="Blues",
+                color="提出回数", color_continuous_scale="Purples",
             )
             fig_bar.update_layout(showlegend=False, coloraxis_showscale=False)
             st.plotly_chart(fig_bar, use_container_width=True)
@@ -478,7 +525,7 @@ def show_admin():
                 labels={"date": "日付"},
                 markers=True,
             )
-            fig_line.update_traces(line_color="#1f77b4", marker_color="#1f77b4")
+            fig_line.update_traces(line_color="#6366f1", marker_color="#6366f1")
             st.plotly_chart(fig_line, use_container_width=True)
 
         # メンバー別提出率（登録メンバーがいる場合のみ）
@@ -598,10 +645,19 @@ def show_export():
         st.info("該当データがありません。")
     else:
         st.markdown(f"対象: **{len(df)} 件**")
+
+        rename_map = {
+            "id": "ID", "date": "日付", "name": "名前",
+            "start_time": "開始時刻", "end_time": "終了時刻", "work_hours": "実績時間(h)",
+            "tasks": "今日やったこと", "tomorrow_plan": "明日の予定",
+            "impressions": "所感", "created_at": "提出日時",
+        }
+        export_df = df[list(rename_map)].rename(columns=rename_map)
+
         col1, col2 = st.columns(2)
 
         with col1:
-            csv_bytes = df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+            csv_bytes = export_df.to_csv(index=False).encode("utf-8-sig")
             st.download_button(
                 label="📥 CSV ダウンロード",
                 data=csv_bytes,
@@ -612,16 +668,16 @@ def show_export():
 
         with col2:
             excel_buf = io.BytesIO()
-            rename_map = {
-                "id": "ID", "date": "日付", "name": "名前",
-                "tasks": "今日やったこと", "tomorrow_plan": "明日の予定",
-                "impressions": "所感", "work_hours": "実績時間(h)",
-                "start_time": "開始時刻", "end_time": "終了時刻", "created_at": "提出日時",
-            }
             with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
-                df.rename(columns=rename_map).to_excel(
-                    writer, sheet_name="日報一覧", index=False
-                )
+                export_df.to_excel(writer, sheet_name="日報一覧", index=False)
+                ws = writer.sheets["日報一覧"]
+                width_map = {
+                    "ID": 6, "日付": 12, "名前": 14, "開始時刻": 10, "終了時刻": 10,
+                    "実績時間(h)": 12, "今日やったこと": 45, "明日の予定": 45,
+                    "所感": 35, "提出日時": 20,
+                }
+                for idx, col_name in enumerate(export_df.columns, 1):
+                    ws.column_dimensions[get_column_letter(idx)].width = width_map.get(col_name, 15)
             st.download_button(
                 label="📥 Excel ダウンロード",
                 data=excel_buf.getvalue(),
@@ -693,7 +749,7 @@ def show_export():
                 lines += ["", "【所感・連絡事項】", row["impressions"]]
             lines += ["", "─" * 40, ""]
 
-        lines.insert(6, f"合計実績時間: {total_hours}h")
+        lines.insert(6, f"合計実績時間: {round(total_hours, 2)}h")
         lines.insert(7, "")
 
         weekly_text = "\n".join(lines)
@@ -705,6 +761,35 @@ def show_export():
             mime="text/plain",
             use_container_width=True,
         )
+
+
+# ─── ページ: 設定 ─────────────────────────────────────────────────────────────
+def show_settings():
+    st.title("⚙️ 設定")
+
+    current_user = st.session_state.get("username", "")
+
+    st.subheader("🔒 パスワード変更")
+    _, col, _ = st.columns([1, 2, 1])
+    with col:
+        with st.form("change_pw_form", clear_on_submit=True):
+            current_pw = st.text_input("現在のパスワード", type="password")
+            new_pw = st.text_input("新しいパスワード（8文字以上）", type="password")
+            new_pw_confirm = st.text_input("新しいパスワード（確認）", type="password")
+            submitted = st.form_submit_button("変更する", type="primary", use_container_width=True)
+
+        if submitted:
+            if db.verify_user(current_user, current_pw) is None:
+                st.error("現在のパスワードが正しくありません。")
+            elif len(new_pw) < 8:
+                st.error("新しいパスワードは8文字以上で設定してください。")
+            elif new_pw != new_pw_confirm:
+                st.error("新しいパスワードが一致しません。")
+            elif new_pw == current_pw:
+                st.error("現在のパスワードと同じです。別のパスワードを設定してください。")
+            else:
+                db.update_password(current_user, new_pw)
+                st.success("✅ パスワードを変更しました。次回から新しいパスワードでログインしてください。")
 
 
 # ─── メイン ───────────────────────────────────────────────────────────────────
@@ -730,6 +815,7 @@ def main():
         if st.session_state.is_admin:
             nav_options.append("👔 管理者機能")
         nav_options.append("📊 エクスポート")
+        nav_options.append("⚙️ 設定")
 
         page = st.radio(
             "ナビゲーション",
@@ -739,12 +825,18 @@ def main():
 
         st.divider()
 
-        # サイドバーに簡易ダッシュボード
+        # サイドバーに簡易ダッシュボード（一般ユーザーは自分の件数のみ）
         all_df = db.get_all_reports()
-        today_count = int((all_df["date"] == today.strftime("%Y-%m-%d")).sum()) if not all_df.empty else 0
+        if st.session_state.is_admin:
+            scope_df = all_df
+            st.caption("チーム全体の提出状況")
+        else:
+            scope_df = all_df[all_df["name"] == st.session_state.username] if not all_df.empty else all_df
+            st.caption("あなたの提出状況")
+        today_count = int((scope_df["date"] == today.strftime("%Y-%m-%d")).sum()) if not scope_df.empty else 0
         col1, col2 = st.columns(2)
         col1.metric("本日", f"{today_count} 件")
-        col2.metric("累計", f"{len(all_df)} 件")
+        col2.metric("累計", f"{len(scope_df)} 件")
 
         st.divider()
         if st.button("ログアウト", use_container_width=True):
@@ -753,7 +845,7 @@ def main():
             st.session_state.is_admin = False
             st.rerun()
 
-        st.caption("Daily Report System v1.0")
+        st.caption("Daily Report System v2.0")
 
     if page == "📝 日報提出":
         show_submit()
@@ -763,6 +855,8 @@ def main():
         show_admin()
     elif page == "📊 エクスポート":
         show_export()
+    elif page == "⚙️ 設定":
+        show_settings()
 
 
 if __name__ == "__main__":

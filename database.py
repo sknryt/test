@@ -220,6 +220,17 @@ def get_users() -> pd.DataFrame:
         )
 
 
+def update_password(username: str, new_password: str) -> None:
+    salt = secrets.token_hex(16)
+    pw_hash = _hash_password(new_password, salt)
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash=?, salt=? WHERE username=?",
+            (pw_hash, salt, username),
+        )
+        conn.commit()
+
+
 def set_admin(username: str, is_admin: bool) -> None:
     with _connect() as conn:
         conn.execute(
