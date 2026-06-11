@@ -7,6 +7,8 @@ import streamlit as st
 
 import database as db
 
+WEEKDAY_JP = ["月", "火", "水", "木", "金", "土", "日"]
+
 st.set_page_config(
     page_title="日報管理システム",
     page_icon="📋",
@@ -34,6 +36,9 @@ st.markdown("""
 # ─── ページ: ログイン ─────────────────────────────────────────────────────────
 def show_login():
     st.subheader("🔐 ログイン")
+
+    if st.session_state.pop("register_success", False):
+        st.success("✅ 登録が完了しました。ログインしてください。")
 
     with st.form("login_form"):
         username = st.text_input("ユーザー名（氏名）")
@@ -83,7 +88,7 @@ def show_register():
             st.error("パスワードが一致しません。")
         elif db.create_user(username, password, is_admin=False):
             db.add_member(username)
-            st.success("登録が完了しました。ログイン画面からログインしてください。")
+            st.session_state.register_success = True
             st.session_state.auth_page = "login"
             st.rerun()
         else:
@@ -148,6 +153,10 @@ def show_submit():
             height=80,
             placeholder="気になったこと、困っていること、共有事項など",
         )
+        work_hours = st.number_input(
+            "⏱️ 業務実績時間（h）",
+            min_value=0.0, max_value=24.0, value=8.0, step=0.25,
+        )
 
         submitted = st.form_submit_button("提出する", type="primary", use_container_width=True)
 
@@ -169,7 +178,7 @@ def show_submit():
     if db.has_submitted(name, date_str):
         st.warning(f"⚠️ {name} さんは {report_date:%Y/%m/%d} の日報を既に提出しています。追加提出として保存します。")
 
-    db.save_report(date_str, name, tasks, tomorrow_plan, impressions)
+    db.save_report(date_str, name, tasks, tomorrow_plan, impressions, work_hours)
     st.success(f"✅ {name} さんの日報（{report_date:%Y/%m/%d}）を提出しました！")
     st.balloons()
 
@@ -205,8 +214,8 @@ def show_list():
         return
 
     # テーブル表示用に長文を省略
-    display_df = df[["id", "date", "name", "tasks", "tomorrow_plan", "impressions", "created_at"]].copy()
-    display_df.columns = ["ID", "日付", "名前", "今日やったこと", "明日の予定", "所感", "提出日時"]
+    display_df = df[["id", "date", "name", "tasks", "tomorrow_plan", "impressions", "work_hours", "created_at"]].copy()
+    display_df.columns = ["ID", "日付", "名前", "今日やったこと", "明日の予定", "所感", "実績時間(h)", "提出日時"]
     for col in ["今日やったこと", "明日の予定", "所感"]:
         display_df[col] = display_df[col].apply(
             lambda x: (str(x)[:60] + "…") if len(str(x)) > 60 else str(x)
@@ -220,6 +229,7 @@ def show_list():
             "ID":     st.column_config.NumberColumn(width="small"),
             "日付":   st.column_config.TextColumn(width="small"),
             "名前":   st.column_config.TextColumn(width="small"),
+            "実績時間(h)": st.column_config.NumberColumn(width="small"),
             "提出日時": st.column_config.TextColumn(width="medium"),
         },
     )
@@ -243,7 +253,7 @@ def show_list():
     row = df[df["id"] == selected_id].iloc[0]
     st.markdown(
         f'<div class="report-card">'
-        f'<b>日付:</b> {row["date"]} ／ <b>名前:</b> {row["name"]}<br>'
+        f'<b>日付:</b> {row["date"]} ／ <b>名前:</b> {row["name"]} ／ <b>実績時間:</b> {row["work_hours"]}h<br>'
         f'<small>提出日時: {row["created_at"]}</small>'
         f"</div>",
         unsafe_allow_html=True,
@@ -473,7 +483,7 @@ def show_export():
             rename_map = {
                 "id": "ID", "date": "日付", "name": "名前",
                 "tasks": "今日やったこと", "tomorrow_plan": "明日の予定",
-                "impressions": "所感", "created_at": "提出日時",
+                "impressions": "所感", "work_hours": "実績時間(h)", "created_at": "提出日時",
             }
             with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
                 df.rename(columns=rename_map).to_excel(
@@ -516,7 +526,6 @@ def show_export():
             st.warning("該当期間の日報が見つかりません。")
             st.stop()
 
-        weekday_jp = ["月", "火", "水", "木", "金", "土", "日"]
         lines = [
             "━" * 50,
             f"週　報",
@@ -525,11 +534,13 @@ def show_export():
             "━" * 50,
             "",
         ]
+        total_hours = 0.0
         for _, row in weekly_df.iterrows():
             d = date.fromisoformat(row["date"])
-            wd = weekday_jp[d.weekday()]
+            wd = WEEKDAY_JP[d.weekday()]
+            total_hours += row["work_hours"]
             lines += [
-                f"■ {d:%Y/%m/%d}（{wd}）",
+                f"■ {d:%Y/%m/%d}（{wd}）　実績時間: {row['work_hours']}h",
                 "",
                 "【今日やったこと】",
                 row["tasks"],
@@ -540,6 +551,9 @@ def show_export():
             if row["impressions"]:
                 lines += ["", "【所感・連絡事項】", row["impressions"]]
             lines += ["", "─" * 40, ""]
+
+        lines.insert(6, f"合計実績時間: {total_hours}h")
+        lines.insert(7, "")
 
         weekly_text = "\n".join(lines)
         st.text_area("週報プレビュー", weekly_text, height=400)
@@ -591,7 +605,8 @@ def main():
 
     with st.sidebar:
         st.title("📋 日報管理システム")
-        st.markdown(f"**{date.today():%Y年%m月%d日（%A）}**")
+        today = date.today()
+        st.markdown(f"**{today:%Y年%m月%d日}（{WEEKDAY_JP[today.weekday()]}）**")
         label = "👑 管理者" if st.session_state.is_admin else "一般ユーザー"
         st.caption(f"ログイン中: {st.session_state.username}（{label}）")
         st.divider()
@@ -611,7 +626,7 @@ def main():
 
         # サイドバーに簡易ダッシュボード
         all_df = db.get_all_reports()
-        today_count = int((all_df["date"] == date.today().strftime("%Y-%m-%d")).sum()) if not all_df.empty else 0
+        today_count = int((all_df["date"] == today.strftime("%Y-%m-%d")).sum()) if not all_df.empty else 0
         col1, col2 = st.columns(2)
         col1.metric("本日", f"{today_count} 件")
         col2.metric("累計", f"{len(all_df)} 件")

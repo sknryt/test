@@ -34,6 +34,7 @@ def init_db() -> None:
                 tasks         TEXT    NOT NULL,
                 tomorrow_plan TEXT    NOT NULL,
                 impressions   TEXT    DEFAULT '',
+                work_hours    REAL    DEFAULT 0,
                 created_at    TEXT    DEFAULT (datetime('now', 'localtime'))
             );
             CREATE TABLE IF NOT EXISTS members (
@@ -51,6 +52,12 @@ def init_db() -> None:
         """)
         conn.commit()
 
+        # 既存DBに work_hours 列が無い場合は追加（マイグレーション）
+        cols = [r["name"] for r in conn.execute("PRAGMA table_info(reports)").fetchall()]
+        if "work_hours" not in cols:
+            conn.execute("ALTER TABLE reports ADD COLUMN work_hours REAL DEFAULT 0")
+            conn.commit()
+
     # 初期管理者アカウントを作成（未登録の場合のみ）
     if not user_exists(DEFAULT_ADMIN_USERNAME):
         create_user(DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD, is_admin=True)
@@ -58,12 +65,12 @@ def init_db() -> None:
 
 
 def save_report(date_str: str, name: str, tasks: str,
-                tomorrow_plan: str, impressions: str) -> None:
+                tomorrow_plan: str, impressions: str, work_hours: float = 0.0) -> None:
     with _connect() as conn:
         conn.execute(
-            "INSERT INTO reports (date, name, tasks, tomorrow_plan, impressions)"
-            " VALUES (?, ?, ?, ?, ?)",
-            (date_str, name, tasks, tomorrow_plan, impressions),
+            "INSERT INTO reports (date, name, tasks, tomorrow_plan, impressions, work_hours)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (date_str, name, tasks, tomorrow_plan, impressions, work_hours),
         )
         conn.execute("INSERT OR IGNORE INTO members (name) VALUES (?)", (name,))
         conn.commit()
@@ -149,7 +156,7 @@ def get_submission_stats(start_date=None, end_date=None) -> pd.DataFrame:
 def get_weekly_reports(name: str, start_date, end_date) -> pd.DataFrame:
     with _connect() as conn:
         return pd.read_sql_query(
-            "SELECT date, tasks, tomorrow_plan, impressions"
+            "SELECT date, tasks, tomorrow_plan, impressions, work_hours"
             " FROM reports"
             " WHERE name=? AND date BETWEEN ? AND ?"
             " ORDER BY date ASC",
