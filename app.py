@@ -28,18 +28,27 @@ html, body, p, h1, h2, h3, h4, h5, h6, input, textarea, button, label, li, td, t
     font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
 }
 
-/* Streamlit のツールバー・フッター・メニュー・Manage appバッジを非表示 */
+/* Streamlit のツールバー・フッター・メニュー・Manage appバッジ等を非表示 */
 #MainMenu, footer,
 [data-testid="stToolbar"],
 [data-testid="stDecoration"],
 [data-testid="stStatusWidget"],
 .stAppDeployButton,
 [class*="viewerBadge"],
-[data-testid="manage-app-button"] {
+[data-testid="manage-app-button"],
+[data-testid="stHeaderActionElements"] {
     display: none !important;
 }
 header[data-testid="stHeader"] {
     background: transparent;
+}
+
+/* モバイルでサイドバーを開くボタンは見えるように残す */
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="stExpandSidebarButton"] {
+    color: #e2e8f0 !important;
+    background: rgba(99, 102, 241, 0.3);
+    border-radius: 8px;
 }
 
 /* アプリ背景（ダークネイビー + ほのかなインディゴの光彩） */
@@ -263,6 +272,29 @@ div[data-testid="stExpander"] summary {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
 ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* スマートフォン向け（Android / iPhone） */
+@media (max-width: 640px) {
+    [data-testid="stMain"] .block-container {
+        padding: 1rem 0.9rem 1.5rem;
+    }
+    .page-header {
+        padding: 0.8rem 1rem;
+        gap: 0.7rem;
+    }
+    .page-header-icon {
+        width: 2.6rem;
+        height: 2.6rem;
+        font-size: 1.4rem;
+        border-radius: 10px;
+    }
+    .page-header-title { font-size: 1.25rem; }
+    .page-header-sub   { font-size: 0.75rem; }
+    .report-card { padding: 0.8rem 0.9rem; }
+}
+/* ヘッダーカードの文字がはみ出さないように */
+.page-header > div:last-child { min-width: 0; }
+.page-header-title, .page-header-sub { overflow-wrap: anywhere; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -700,7 +732,7 @@ def show_admin():
                 color="提出回数", color_continuous_scale="Purples",
             )
             fig_bar.update_layout(showlegend=False, coloraxis_showscale=False)
-            st.plotly_chart(fig_bar, use_container_width=True)
+            st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
 
         with col2:
             daily_counts = (
@@ -715,7 +747,7 @@ def show_admin():
                 markers=True,
             )
             fig_line.update_traces(line_color="#6366f1", marker_color="#6366f1")
-            st.plotly_chart(fig_line, use_container_width=True)
+            st.plotly_chart(fig_line, use_container_width=True, config={"displayModeBar": False})
 
         # メンバー別提出率（登録メンバーがいる場合のみ）
         if members:
@@ -737,7 +769,7 @@ def show_admin():
             )
             fig_rate.update_traces(texttemplate="%{text}%", textposition="outside")
             fig_rate.update_layout(yaxis_range=[0, 115], coloraxis_showscale=False)
-            st.plotly_chart(fig_rate, use_container_width=True)
+            st.plotly_chart(fig_rate, use_container_width=True, config={"displayModeBar": False})
             st.dataframe(rate_df, use_container_width=True, hide_index=True)
 
     st.divider()
