@@ -34,6 +34,7 @@ def init_db() -> None:
                 tasks         TEXT    NOT NULL,
                 tomorrow_plan TEXT    NOT NULL,
                 impressions   TEXT    DEFAULT '',
+                questions     TEXT    DEFAULT '',
                 work_hours    REAL    DEFAULT 0,
                 start_time    TEXT    DEFAULT '',
                 end_time      TEXT    DEFAULT '',
@@ -62,6 +63,8 @@ def init_db() -> None:
             conn.execute("ALTER TABLE reports ADD COLUMN start_time TEXT DEFAULT ''")
         if "end_time" not in cols:
             conn.execute("ALTER TABLE reports ADD COLUMN end_time TEXT DEFAULT ''")
+        if "questions" not in cols:
+            conn.execute("ALTER TABLE reports ADD COLUMN questions TEXT DEFAULT ''")
         conn.commit()
 
     # 初期管理者アカウントを作成（未登録の場合のみ）
@@ -72,13 +75,15 @@ def init_db() -> None:
 
 def save_report(date_str: str, name: str, tasks: str,
                 tomorrow_plan: str, impressions: str, work_hours: float = 0.0,
-                start_time: str = "", end_time: str = "") -> None:
+                start_time: str = "", end_time: str = "", questions: str = "") -> None:
     with _connect() as conn:
         conn.execute(
             "INSERT INTO reports"
-            " (date, name, tasks, tomorrow_plan, impressions, work_hours, start_time, end_time)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (date_str, name, tasks, tomorrow_plan, impressions, work_hours, start_time, end_time),
+            " (date, name, tasks, tomorrow_plan, impressions, questions,"
+            "  work_hours, start_time, end_time)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (date_str, name, tasks, tomorrow_plan, impressions, questions,
+             work_hours, start_time, end_time),
         )
         conn.execute("INSERT OR IGNORE INTO members (name) VALUES (?)", (name,))
         conn.commit()
@@ -108,8 +113,8 @@ def get_reports(date_from=None, date_to=None,
         params.append(name)
     if keyword:
         like = f"%{keyword}%"
-        sql += " AND (tasks LIKE ? OR tomorrow_plan LIKE ? OR impressions LIKE ?)"
-        params.extend([like, like, like])
+        sql += " AND (tasks LIKE ? OR tomorrow_plan LIKE ? OR impressions LIKE ? OR questions LIKE ?)"
+        params.extend([like, like, like, like])
     sql += " ORDER BY date DESC, created_at DESC"
     with _connect() as conn:
         return pd.read_sql_query(sql, conn, params=params)
@@ -159,18 +164,6 @@ def get_submission_stats(start_date=None, end_date=None) -> pd.DataFrame:
         params.append(str(end_date))
     with _connect() as conn:
         return pd.read_sql_query(sql, conn, params=params)
-
-
-def get_weekly_reports(name: str, start_date, end_date) -> pd.DataFrame:
-    with _connect() as conn:
-        return pd.read_sql_query(
-            "SELECT date, tasks, tomorrow_plan, impressions, work_hours, start_time, end_time"
-            " FROM reports"
-            " WHERE name=? AND date BETWEEN ? AND ?"
-            " ORDER BY date ASC",
-            conn,
-            params=(name, str(start_date), str(end_date)),
-        )
 
 
 def delete_report(report_id: int) -> None:

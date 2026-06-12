@@ -402,10 +402,16 @@ def show_submit():
             key="sub_plan",
         )
         impressions = st.text_area(
-            "💬 所感・連絡事項（任意）",
+            "🚧 課題・困ってること（必須）",
             height=80,
-            placeholder="気になったこと、困っていること、共有事項など",
+            placeholder="作業で詰まっている点、困っていること、リスクなど",
             key="sub_imp",
+        )
+        questions = st.text_area(
+            "❓ 質問（必須）",
+            height=80,
+            placeholder="確認したいこと、相談したいことなど（特になければ「なし」と記入）",
+            key="sub_q",
         )
 
         submitted = st.form_submit_button("提出する", type="primary", use_container_width=True)
@@ -419,10 +425,14 @@ def show_submit():
         missing.append("今日やったこと")
     if not tomorrow_plan.strip():
         missing.append("明日の予定")
+    if not impressions.strip():
+        missing.append("課題・困ってること")
+    if not questions.strip():
+        missing.append("質問")
     if missing:
         st.error(
             f"⚠️ 未入力の項目があります: **{'・'.join(missing)}** を入力してください。"
-            "（所感・連絡事項は未入力でも提出できます）"
+            "すべての項目が必須です。"
         )
         return
 
@@ -438,6 +448,7 @@ def show_submit():
     db.save_report(
         date_str, name, tasks, tomorrow_plan, impressions, work_hours,
         start_time_input.strftime("%H:%M"), end_time_input.strftime("%H:%M"),
+        questions,
     )
     msg = (
         f"✅ {name} さんの日報（{report_date:%Y/%m/%d}）を提出しました！　"
@@ -447,7 +458,7 @@ def show_submit():
         msg += "　※同日の日報があったため追加提出として保存しました。"
     st.session_state.submit_flash = msg
     # 成功時のみフォームをクリア（エラー時は入力を保持）
-    for k in ("sub_tasks", "sub_plan", "sub_imp"):
+    for k in ("sub_tasks", "sub_plan", "sub_imp", "sub_q"):
         st.session_state.pop(k, None)
     st.rerun()
 
@@ -471,7 +482,7 @@ def show_list():
                 name_filter = st.selectbox("名前", ["すべて"] + members, key="ln")
             with c3:
                 keyword = st.text_input("キーワード検索", placeholder="本文を横断検索", key="lk")
-                st.caption("「今日やったこと」「明日の予定」「所感」を同時に検索します")
+                st.caption("「今日やったこと」「明日の予定」「課題」「質問」を同時に検索します")
     else:
         name_filter = current_user
         with st.expander("🔍 検索フィルター", expanded=True):
@@ -482,7 +493,7 @@ def show_list():
                 date_to   = st.date_input("終了日", value=date.today(), key="lt")
             with c2:
                 keyword = st.text_input("キーワード検索", placeholder="本文を横断検索", key="lk")
-                st.caption("「今日やったこと」「明日の予定」「所感」を同時に検索します")
+                st.caption("「今日やったこと」「明日の予定」「課題」「質問」を同時に検索します")
 
     df = db.get_reports(
         date_from=date_from,
@@ -502,9 +513,9 @@ def show_list():
         lambda r: f"{r['start_time']}〜{r['end_time']}" if r["start_time"] and r["end_time"] else "-",
         axis=1,
     )
-    display_df = df[["id", "date", "name", "勤務時間", "tasks", "tomorrow_plan", "impressions", "work_hours", "created_at"]].copy()
-    display_df.columns = ["ID", "日付", "名前", "勤務時間", "今日やったこと", "明日の予定", "所感", "実績時間(h)", "提出日時"]
-    for col in ["今日やったこと", "明日の予定", "所感"]:
+    display_df = df[["id", "date", "name", "勤務時間", "tasks", "tomorrow_plan", "impressions", "questions", "work_hours", "created_at"]].copy()
+    display_df.columns = ["ID", "日付", "名前", "勤務時間", "今日やったこと", "明日の予定", "課題・困ってること", "質問", "実績時間(h)", "提出日時"]
+    for col in ["今日やったこと", "明日の予定", "課題・困ってること", "質問"]:
         display_df[col] = display_df[col].apply(
             lambda x: (str(x)[:60] + "…") if len(str(x)) > 60 else str(x)
         )
@@ -557,11 +568,13 @@ def show_list():
     with col1:
         st.markdown("**✅ 今日やったこと**")
         st.text(row["tasks"])
-        st.markdown("**💬 所感・連絡事項**")
+        st.markdown("**🚧 課題・困ってること**")
         st.text(row["impressions"] if row["impressions"] else "（なし）")
     with col2:
         st.markdown("**📅 明日の予定**")
         st.text(row["tomorrow_plan"])
+        st.markdown("**❓ 質問**")
+        st.text(row["questions"] if row["questions"] else "（なし）")
 
     with st.expander("⚠️ この日報を削除する"):
         st.warning("削除すると元に戻せません。")
@@ -610,7 +623,7 @@ def show_admin():
 
     c1, c2 = st.columns(2)
     with c1:
-        stats_from = st.date_input("集計開始日", value=date.today() - timedelta(days=30), key="sf")
+        stats_from = st.date_input("集計開始日", value=date.today(), key="sf")
     with c2:
         stats_to = st.date_input("集計終了日", value=date.today(), key="st")
 
@@ -763,20 +776,20 @@ def show_admin():
             st.rerun()
 
 
-# ─── ページ: エクスポート・週報生成 ──────────────────────────────────────────
+# ─── ページ: エクスポート ─────────────────────────────────────────────────────
 def show_export():
-    page_header("📊", "エクスポート・週報生成", "日報データの出力と週報の自動作成")
+    page_header("📊", "エクスポート", "日報データを CSV / Excel で出力できます")
 
     current_user = st.session_state.get("username", "")
     is_admin = st.session_state.get("is_admin", False)
     members = db.get_members() if is_admin else [current_user]
 
-    # 1. データエクスポート
+    # データエクスポート
     st.subheader("📁 データエクスポート")
 
     c1, c2 = st.columns(2)
     with c1:
-        exp_from = st.date_input("開始日", value=date.today() - timedelta(days=30), key="ef")
+        exp_from = st.date_input("開始日", value=date.today(), key="ef")
         exp_to   = st.date_input("終了日", value=date.today(), key="et")
     with c2:
         if is_admin:
@@ -800,7 +813,7 @@ def show_export():
             "id": "ID", "date": "日付", "name": "名前",
             "start_time": "開始時刻", "end_time": "終了時刻", "work_hours": "実績時間(h)",
             "tasks": "今日やったこと", "tomorrow_plan": "明日の予定",
-            "impressions": "所感", "created_at": "提出日時",
+            "impressions": "課題・困ってること", "questions": "質問", "created_at": "提出日時",
         }
         export_df = df[list(rename_map)].rename(columns=rename_map)
 
@@ -824,7 +837,7 @@ def show_export():
                 width_map = {
                     "ID": 6, "日付": 12, "名前": 14, "開始時刻": 10, "終了時刻": 10,
                     "実績時間(h)": 12, "今日やったこと": 45, "明日の予定": 45,
-                    "所感": 35, "提出日時": 20,
+                    "課題・困ってること": 35, "質問": 35, "提出日時": 20,
                 }
                 for idx, col_name in enumerate(export_df.columns, 1):
                     ws.column_dimensions[get_column_letter(idx)].width = width_map.get(col_name, 15)
@@ -835,86 +848,6 @@ def show_export():
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
             )
-
-    st.divider()
-
-    # 2. 週報自動生成
-    st.subheader("📝 週報自動生成")
-
-    c1, c2 = st.columns(2)
-    with c1:
-        if is_admin:
-            users_df = db.get_users()
-            admin_users = set(users_df.loc[users_df["is_admin"] == 1, "username"])
-            weekly_members = [m for m in members if m not in admin_users]
-            if weekly_members:
-                weekly_name = st.selectbox("対象メンバー（一般ユーザーのみ）", weekly_members, key="wn")
-            else:
-                weekly_name = None
-                st.info("一般ユーザーのメンバーがいません。")
-        else:
-            weekly_name = current_user
-            st.text_input("対象メンバー", value=current_user, disabled=True, key="wn")
-    with c2:
-        today = date.today()
-        last_monday = today - timedelta(days=today.weekday())
-        week_start = st.date_input("週の開始日（月曜日）", value=last_monday, key="ws")
-
-    week_end = week_start + timedelta(days=6)
-    st.caption(f"対象期間: {week_start:%Y/%m/%d}（月）～ {week_end:%Y/%m/%d}（日）")
-
-    if st.button("週報を生成する", type="primary"):
-        if not (weekly_name or "").strip():
-            st.error("メンバーを選択してください。")
-            st.stop()
-
-        weekly_df = db.get_weekly_reports(weekly_name, week_start, week_end)
-        if weekly_df.empty:
-            st.warning("該当期間の日報が見つかりません。")
-            st.stop()
-
-        lines = [
-            "━" * 50,
-            f"週　報",
-            f"氏名: {weekly_name}",
-            f"期間: {week_start:%Y年%m月%d日} ～ {week_end:%Y年%m月%d日}",
-            "━" * 50,
-            "",
-        ]
-        total_hours = 0.0
-        for _, row in weekly_df.iterrows():
-            d = date.fromisoformat(row["date"])
-            wd = WEEKDAY_JP[d.weekday()]
-            total_hours += row["work_hours"]
-            work_time_str = (
-                f"{row['start_time']}〜{row['end_time']}"
-                if row["start_time"] and row["end_time"] else "-"
-            )
-            lines += [
-                f"■ {d:%Y/%m/%d}（{wd}）　勤務時間: {work_time_str}（{row['work_hours']}h）",
-                "",
-                "【今日やったこと】",
-                row["tasks"],
-                "",
-                "【明日の予定】",
-                row["tomorrow_plan"],
-            ]
-            if row["impressions"]:
-                lines += ["", "【所感・連絡事項】", row["impressions"]]
-            lines += ["", "─" * 40, ""]
-
-        lines.insert(6, f"合計実績時間: {round(total_hours, 2)}h")
-        lines.insert(7, "")
-
-        weekly_text = "\n".join(lines)
-        st.text_area("週報プレビュー", weekly_text, height=400)
-        st.download_button(
-            label="📥 週報をテキストでダウンロード",
-            data=weekly_text.encode("utf-8"),
-            file_name=f"weekly_{weekly_name}_{week_start}.txt",
-            mime="text/plain",
-            use_container_width=True,
-        )
 
 
 # ─── ページ: 設定 ─────────────────────────────────────────────────────────────
