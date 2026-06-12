@@ -1,3 +1,4 @@
+import html
 import io
 from datetime import date, datetime, time, timedelta
 
@@ -339,11 +340,13 @@ div[data-testid="stExpander"] summary {
 
 # ─── 共通: ページヘッダー ─────────────────────────────────────────────────────
 def page_header(icon: str, title: str, subtitle: str = ""):
-    sub_html = f'<div class="page-header-sub">{subtitle}</div>' if subtitle else ""
+    sub_html = (
+        f'<div class="page-header-sub">{html.escape(subtitle)}</div>' if subtitle else ""
+    )
     st.markdown(
         f'<div class="page-header">'
         f'<div class="page-header-icon">{icon}</div>'
-        f'<div><div class="page-header-title">{title}</div>{sub_html}</div>'
+        f'<div><div class="page-header-title">{html.escape(title)}</div>{sub_html}</div>'
         f"</div>",
         unsafe_allow_html=True,
     )
@@ -698,9 +701,10 @@ def show_list():
     )
     st.markdown(
         f'<div class="report-card">'
-        f'<b>日付:</b> {row["date"]} ／ <b>名前:</b> {row["name"]} ／ '
-        f'<b>勤務時間:</b> {work_time_str}（{row["work_hours"]}h）<br>'
-        f'<small>提出日時: {row["created_at"]}</small>'
+        f'<b>日付:</b> {html.escape(str(row["date"]))} ／ '
+        f'<b>名前:</b> {html.escape(str(row["name"]))} ／ '
+        f'<b>勤務時間:</b> {html.escape(work_time_str)}（{row["work_hours"]}h）<br>'
+        f'<small>提出日時: {html.escape(str(row["created_at"]))}</small>'
         f"</div>",
         unsafe_allow_html=True,
     )
@@ -744,9 +748,9 @@ def show_admin():
         for i, member in enumerate(members):
             with cols[i % n_cols]:
                 if member in submitted_today:
-                    st.markdown(f'<p class="badge-ok">✅ {member}</p>', unsafe_allow_html=True)
+                    st.markdown(f'<p class="badge-ok">✅ {html.escape(member)}</p>', unsafe_allow_html=True)
                 else:
-                    st.markdown(f'<p class="badge-ng">❌ {member}</p>', unsafe_allow_html=True)
+                    st.markdown(f'<p class="badge-ng">❌ {html.escape(member)}</p>', unsafe_allow_html=True)
 
         not_submitted = [m for m in members if m not in submitted_today]
         if not_submitted:
