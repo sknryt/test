@@ -277,6 +277,8 @@ def show_login():
 
         if st.session_state.pop("register_success", False):
             st.success("✅ 登録が完了しました。ログインしてください。")
+        if st.session_state.pop("reset_success", False):
+            st.success("✅ パスワードを変更しました。新しいパスワードでログインしてください。")
 
         with st.form("login_form"):
             username = st.text_input("ユーザー名（氏名）")
@@ -301,6 +303,50 @@ def show_login():
         st.markdown("アカウントをお持ちでない方は")
         if st.button("新規登録はこちら", use_container_width=True):
             st.session_state.auth_page = "register"
+            st.rerun()
+        if st.button("パスワードを忘れた方はこちら", use_container_width=True):
+            st.session_state.auth_page = "reset"
+            st.rerun()
+
+
+# ─── ページ: パスワード再設定（ログイン前） ──────────────────────────────────
+def show_password_reset():
+    with st.container(border=True):
+        st.subheader("🔁 パスワード再設定")
+        st.caption("ユーザー名を入力して、新しいパスワードを設定してください。")
+
+        with st.form("reset_form"):
+            username = st.text_input("ユーザー名（氏名）", placeholder="山田 太郎")
+            new_pw = st.text_input("新しいパスワード（8文字以上）", type="password")
+            new_pw_confirm = st.text_input("新しいパスワード（確認）", type="password")
+            submitted = st.form_submit_button("パスワードを変更する", type="primary", use_container_width=True)
+
+        if submitted:
+            username = username.strip()
+            user_row = None
+            if username and db.user_exists(username):
+                users_df = db.get_users()
+                user_row = users_df[users_df["username"] == username].iloc[0]
+
+            if not username:
+                st.error("ユーザー名を入力してください。")
+            elif user_row is None:
+                st.error("そのユーザー名は登録されていません。")
+            elif bool(user_row["is_admin"]):
+                st.error("管理者アカウントはこの画面から再設定できません。他の管理者に依頼してください。")
+            elif len(new_pw) < 8:
+                st.error("パスワードは8文字以上で設定してください。")
+            elif new_pw != new_pw_confirm:
+                st.error("パスワードが一致しません。")
+            else:
+                db.update_password(username, new_pw)
+                st.session_state.reset_success = True
+                st.session_state.auth_page = "login"
+                st.rerun()
+
+        st.divider()
+        if st.button("ログイン画面に戻る", use_container_width=True):
+            st.session_state.auth_page = "login"
             st.rerun()
 
 
@@ -365,6 +411,8 @@ def show_auth():
     with col:
         if st.session_state.auth_page == "register":
             show_register()
+        elif st.session_state.auth_page == "reset":
+            show_password_reset()
         else:
             show_login()
 
@@ -759,6 +807,24 @@ def show_admin():
             st.session_state.confirm_delete_user = u["username"]
             st.rerun()
 
+    # パスワード再設定（パスワードを忘れたユーザー向け）
+    other_users = [u for u in users_df["username"] if u != current_user]
+    with st.expander("🔁 パスワード再設定"):
+        if not other_users:
+            st.info("再設定できる他のユーザーがいません。")
+        else:
+            st.caption("パスワードを忘れたユーザーに新しいパスワードを設定します。")
+            with st.form("admin_reset_pw_form", clear_on_submit=True):
+                reset_target = st.selectbox("対象ユーザー", other_users)
+                reset_pw = st.text_input("新しいパスワード（8文字以上）", type="password")
+                reset_btn = st.form_submit_button("再設定する", type="primary", use_container_width=True)
+            if reset_btn:
+                if len(reset_pw) < 8:
+                    st.error("パスワードは8文字以上で設定してください。")
+                else:
+                    db.update_password(reset_target, reset_pw)
+                    st.success(f"✅ 「{reset_target}」のパスワードを再設定しました。")
+
     # 削除の確認ステップ（日報データも消えるため）
     target = st.session_state.get("confirm_delete_user")
     if target and db.user_exists(target):
@@ -809,11 +875,16 @@ def show_export():
     else:
         st.markdown(f"対象: **{len(df)} 件**")
 
+        # 画面の一覧と同じ項目名・列順で出力する
+        df["勤務時間"] = df.apply(
+            lambda r: f"{r['start_time']}〜{r['end_time']}" if r["start_time"] and r["end_time"] else "-",
+            axis=1,
+        )
         rename_map = {
-            "id": "ID", "date": "日付", "name": "名前",
-            "start_time": "開始時刻", "end_time": "終了時刻", "work_hours": "実績時間(h)",
+            "id": "ID", "date": "日付", "name": "名前", "勤務時間": "勤務時間",
             "tasks": "今日やったこと", "tomorrow_plan": "明日の予定",
-            "impressions": "課題・困ってること", "questions": "質問", "created_at": "提出日時",
+            "impressions": "課題・困ってること", "questions": "質問",
+            "work_hours": "実績時間(h)", "created_at": "提出日時",
         }
         export_df = df[list(rename_map)].rename(columns=rename_map)
 
@@ -835,9 +906,10 @@ def show_export():
                 export_df.to_excel(writer, sheet_name="日報一覧", index=False)
                 ws = writer.sheets["日報一覧"]
                 width_map = {
-                    "ID": 6, "日付": 12, "名前": 14, "開始時刻": 10, "終了時刻": 10,
-                    "実績時間(h)": 12, "今日やったこと": 45, "明日の予定": 45,
-                    "課題・困ってること": 35, "質問": 35, "提出日時": 20,
+                    "ID": 6, "日付": 12, "名前": 14, "勤務時間": 14,
+                    "今日やったこと": 45, "明日の予定": 45,
+                    "課題・困ってること": 35, "質問": 35,
+                    "実績時間(h)": 12, "提出日時": 20,
                 }
                 for idx, col_name in enumerate(export_df.columns, 1):
                     ws.column_dimensions[get_column_letter(idx)].width = width_map.get(col_name, 15)
