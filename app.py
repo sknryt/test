@@ -429,38 +429,41 @@ def show_submit():
         st.success(flash)
         st.balloons()
 
-    with st.form("report_form"):
+    # 提出成功のたびにウィジェットキーを切り替えて、フォームを確実に空にする
+    nonce = st.session_state.setdefault("submit_nonce", 0)
+
+    with st.form(f"report_form_{nonce}"):
         col1, col2, col3 = st.columns(3)
         with col1:
-            report_date = st.date_input("日付", value=date.today(), key="sub_date")
+            report_date = st.date_input("日付", value=date.today(), key=f"sub_date_{nonce}")
         with col2:
-            start_time_input = st.time_input("⏰ 開始時刻", value=time(9, 0), step=900, key="sub_start")
+            start_time_input = st.time_input("⏰ 開始時刻", value=time(9, 0), step=900, key=f"sub_start_{nonce}")
         with col3:
-            end_time_input = st.time_input("⏰ 終了時刻", value=time(18, 0), step=900, key="sub_end")
+            end_time_input = st.time_input("⏰ 終了時刻", value=time(18, 0), step=900, key=f"sub_end_{nonce}")
 
         tasks = st.text_area(
             "✅ 今日やったこと（必須）",
             height=130,
             placeholder="・会議の議事録作成\n・〇〇機能の実装\n・△△の調査・確認",
-            key="sub_tasks",
+            key=f"sub_tasks_{nonce}",
         )
         tomorrow_plan = st.text_area(
             "📅 明日の予定（必須）",
             height=100,
             placeholder="・〇〇のレビュー依頼\n・△△のテスト実施",
-            key="sub_plan",
+            key=f"sub_plan_{nonce}",
         )
         impressions = st.text_area(
             "🚧 課題・困ってること（必須）",
             height=80,
             placeholder="作業で詰まっている点、困っていること、リスクなど",
-            key="sub_imp",
+            key=f"sub_imp_{nonce}",
         )
         questions = st.text_area(
             "❓ 質問（必須）",
             height=80,
             placeholder="確認したいこと、相談したいことなど（特になければ「なし」と記入）",
-            key="sub_q",
+            key=f"sub_q_{nonce}",
         )
 
         submitted = st.form_submit_button("提出する", type="primary", use_container_width=True)
@@ -506,9 +509,12 @@ def show_submit():
     if duplicate:
         msg += "　※同日の日報があったため追加提出として保存しました。"
     st.session_state.submit_flash = msg
-    # 成功時のみフォームをクリア（エラー時は入力を保持）
-    for k in ("sub_tasks", "sub_plan", "sub_imp", "sub_q"):
+    # 成功時のみフォームをクリア（キーを切り替えて新しい空フォームにする。
+    # エラー時は同じキーのままなので入力は保持される）
+    for k in (f"sub_date_{nonce}", f"sub_start_{nonce}", f"sub_end_{nonce}",
+              f"sub_tasks_{nonce}", f"sub_plan_{nonce}", f"sub_imp_{nonce}", f"sub_q_{nonce}"):
         st.session_state.pop(k, None)
+    st.session_state.submit_nonce = nonce + 1
     st.rerun()
 
 
@@ -613,17 +619,14 @@ def show_list():
         unsafe_allow_html=True,
     )
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("**✅ 今日やったこと**")
-        st.text(row["tasks"])
-        st.markdown("**🚧 課題・困ってること**")
-        st.text(row["impressions"] if row["impressions"] else "（なし）")
-    with col2:
-        st.markdown("**📅 明日の予定**")
-        st.text(row["tomorrow_plan"])
-        st.markdown("**❓ 質問**")
-        st.text(row["questions"] if row["questions"] else "（なし）")
+    st.markdown("**✅ 今日やったこと**")
+    st.text(row["tasks"])
+    st.markdown("**📅 明日の予定**")
+    st.text(row["tomorrow_plan"])
+    st.markdown("**🚧 課題・困ってること**")
+    st.text(row["impressions"] if row["impressions"] else "（なし）")
+    st.markdown("**❓ 質問**")
+    st.text(row["questions"] if row["questions"] else "（なし）")
 
     with st.expander("⚠️ この日報を削除する"):
         st.warning("削除すると元に戻せません。")
