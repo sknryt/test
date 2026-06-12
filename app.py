@@ -28,11 +28,14 @@ html, body, p, h1, h2, h3, h4, h5, h6, input, textarea, button, label, li, td, t
     font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
 }
 
-/* Streamlit のツールバー・フッター・メニューを非表示 */
+/* Streamlit のツールバー・フッター・メニュー・Manage appバッジを非表示 */
 #MainMenu, footer,
 [data-testid="stToolbar"],
 [data-testid="stDecoration"],
-[data-testid="stStatusWidget"] {
+[data-testid="stStatusWidget"],
+.stAppDeployButton,
+[class*="viewerBadge"],
+[data-testid="manage-app-button"] {
     display: none !important;
 }
 header[data-testid="stHeader"] {
