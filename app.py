@@ -205,6 +205,12 @@ div[data-testid="stForm"], div[data-testid="stExpander"] {
     border-radius: 10px;
 }
 
+/* メインエリアの上下余白を圧縮（1画面に収まりやすく） */
+[data-testid="stMain"] .block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
 /* 入力欄を常時視認できるように（枠線＋カードより暗い背景） */
 div[data-baseweb="input"],
 div[data-baseweb="textarea"],
@@ -301,12 +307,11 @@ def show_login():
                     st.query_params["token"] = db.create_session(user["username"])
                     st.rerun()
 
-        st.divider()
-        st.markdown("アカウントをお持ちでない方は")
-        if st.button("新規登録はこちら", use_container_width=True):
+        c1, c2 = st.columns(2)
+        if c1.button("新規登録", use_container_width=True):
             st.session_state.auth_page = "register"
             st.rerun()
-        if st.button("パスワードを忘れた方はこちら", use_container_width=True):
+        if c2.button("パスワードを忘れた方", use_container_width=True):
             st.session_state.auth_page = "reset"
             st.rerun()
 
@@ -346,7 +351,6 @@ def show_password_reset():
                 st.session_state.auth_page = "login"
                 st.rerun()
 
-        st.divider()
         if st.button("ログイン画面に戻る", use_container_width=True):
             st.session_state.auth_page = "login"
             st.rerun()
@@ -381,8 +385,6 @@ def show_register():
             else:
                 st.error("そのユーザー名は既に登録されています。")
 
-        st.divider()
-        st.markdown("既にアカウントをお持ちの方は")
         if st.button("ログイン画面に戻る", use_container_width=True):
             st.session_state.auth_page = "login"
             st.rerun()
@@ -391,17 +393,11 @@ def show_register():
 # ─── 未ログイン時のトップ画面 ──────────────────────────────────────────────────
 def show_auth():
     st.markdown(
-        '<div style="text-align:center; padding-top:1.5rem;">'
-        '<div style="font-size:3.5rem; line-height:1;">📋</div>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<h1 style="text-align:center; margin-bottom:0;">日報管理システム</h1>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<p style="text-align:center; color:#94a3b8; margin-bottom:1.5rem;">'
+        '<div style="text-align:center;">'
+        '<span style="font-size:2.4rem; line-height:1;">📋</span>'
+        '</div>'
+        '<h1 style="text-align:center; margin:0; padding:0; font-size:1.9rem;">日報管理システム</h1>'
+        '<p style="text-align:center; color:#94a3b8; margin:0.2rem 0 0.8rem;">'
         "チームの日報を、もっとスマートに。</p>",
         unsafe_allow_html=True,
     )
