@@ -52,6 +52,12 @@ def init_db() -> None:
                 is_admin      INTEGER NOT NULL DEFAULT 0,
                 created_at    TEXT    DEFAULT (datetime('now', 'localtime'))
             );
+            CREATE TABLE IF NOT EXISTS sessions (
+                token      TEXT PRIMARY KEY,
+                username   TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now', 'localtime'))
+            );
         """)
         conn.commit()
 
@@ -221,6 +227,42 @@ def update_password(username: str, new_password: str) -> None:
             "UPDATE users SET password_hash=?, salt=? WHERE username=?",
             (pw_hash, salt, username),
         )
+        # パスワード変更時は既存のログインセッションを無効化
+        conn.execute("DELETE FROM sessions WHERE username=?", (username,))
+        conn.commit()
+
+
+# ─── ログインセッション ────────────────────────────────────────────────────────
+def create_session(username: str, days: int = 7) -> str:
+    token = secrets.token_urlsafe(32)
+    with _connect() as conn:
+        # 期限切れセッションを掃除してから発行
+        conn.execute("DELETE FROM sessions WHERE expires_at < datetime('now', 'localtime')")
+        conn.execute(
+            "INSERT INTO sessions (token, username, expires_at)"
+            " VALUES (?, ?, datetime('now', 'localtime', ?))",
+            (token, username, f"+{days} days"),
+        )
+        conn.commit()
+    return token
+
+
+def get_session_user(token: str):
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT s.username, u.is_admin"
+            " FROM sessions s JOIN users u ON u.username = s.username"
+            " WHERE s.token=? AND s.expires_at >= datetime('now', 'localtime')",
+            (token,),
+        ).fetchone()
+    if row is None:
+        return None
+    return {"username": row["username"], "is_admin": bool(row["is_admin"])}
+
+
+def delete_session(token: str) -> None:
+    with _connect() as conn:
+        conn.execute("DELETE FROM sessions WHERE token=?", (token,))
         conn.commit()
 
 
@@ -233,9 +275,10 @@ def set_admin(username: str, is_admin: bool) -> None:
 
 
 def delete_user(username: str) -> None:
-    """アカウントを削除し、そのユーザーの日報・メンバー登録もすべて削除する。"""
+    """アカウントを削除し、そのユーザーの日報・メンバー登録・セッションもすべて削除する。"""
     with _connect() as conn:
         conn.execute("DELETE FROM users WHERE username=?", (username,))
         conn.execute("DELETE FROM reports WHERE name=?", (username,))
         conn.execute("DELETE FROM members WHERE name=?", (username,))
+        conn.execute("DELETE FROM sessions WHERE username=?", (username,))
         conn.commit()

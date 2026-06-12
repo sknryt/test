@@ -297,6 +297,8 @@ def show_login():
                     st.session_state.logged_in = True
                     st.session_state.username = user["username"]
                     st.session_state.is_admin = user["is_admin"]
+                    # リロードしてもログインが保持されるようトークンを発行
+                    st.query_params["token"] = db.create_session(user["username"])
                     st.rerun()
 
         st.divider()
@@ -958,6 +960,19 @@ def main():
         st.session_state.username = None
         st.session_state.is_admin = False
 
+    # リロード後はURLのトークンで自動ログイン
+    if not st.session_state.logged_in:
+        token = st.query_params.get("token")
+        if token:
+            user = db.get_session_user(token)
+            if user:
+                st.session_state.logged_in = True
+                st.session_state.username = user["username"]
+                st.session_state.is_admin = user["is_admin"]
+            else:
+                # 期限切れ・無効トークンはURLから除去
+                del st.query_params["token"]
+
     if not st.session_state.logged_in:
         show_auth()
         return
@@ -999,6 +1014,10 @@ def main():
 
         st.divider()
         if st.button("ログアウト", use_container_width=True):
+            token = st.query_params.get("token")
+            if token:
+                db.delete_session(token)
+                del st.query_params["token"]
             st.session_state.logged_in = False
             st.session_state.username = None
             st.session_state.is_admin = False
