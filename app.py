@@ -596,9 +596,12 @@ def show_list():
     sub = "チーム全体の日報を閲覧・検索できます" if is_admin else "自分の日報を閲覧・検索できます"
     page_header("📋", "一覧・検索", sub)
 
-    if is_admin:
-        members = db.get_members()
-        with st.expander("🔍 検索フィルター", expanded=True):
+    # デフォルトは最新の日報を表示。過去に遡るときだけ検索モードに切り替える
+    search_mode = st.session_state.get("list_search_mode", False)
+
+    with st.expander("🔍 過去の日報を検索", expanded=search_mode):
+        if is_admin:
+            members = db.get_members()
             c1, c2, c3 = st.columns([2, 2, 3])
             with c1:
                 date_from = st.date_input("開始日", value=date.today() - timedelta(days=30), key="lf")
@@ -608,10 +611,9 @@ def show_list():
             with c3:
                 keyword = st.text_input("キーワード検索", placeholder="本文を横断検索", key="lk")
                 st.caption("「今日やったこと」「明日の予定」「課題」「質問」を同時に検索します")
-    else:
-        name_filter = current_user
-        with st.expander("🔍 検索フィルター", expanded=True):
+        else:
             st.caption("🔒 自分の日報のみ表示されます")
+            name_filter = current_user
             c1, c2 = st.columns([2, 3])
             with c1:
                 date_from = st.date_input("開始日", value=date.today() - timedelta(days=30), key="lf")
@@ -620,18 +622,32 @@ def show_list():
                 keyword = st.text_input("キーワード検索", placeholder="本文を横断検索", key="lk")
                 st.caption("「今日やったこと」「明日の予定」「課題」「質問」を同時に検索します")
 
-    df = db.get_reports(
-        date_from=date_from,
-        date_to=date_to,
-        name=None if name_filter == "すべて" else name_filter,
-        keyword=keyword.strip() or None,
-    )
+        b1, b2 = st.columns(2)
+        if b1.button("🔍 この条件で検索", type="primary", use_container_width=True):
+            st.session_state.list_search_mode = True
+            st.rerun()
+        if search_mode and b2.button("↩️ 最新の日報に戻る", use_container_width=True):
+            st.session_state.list_search_mode = False
+            st.rerun()
 
-    st.markdown(f"**{len(df)} 件** ヒット")
-
-    if df.empty:
-        st.info("該当する日報が見つかりませんでした。")
-        return
+    if search_mode:
+        df = db.get_reports(
+            date_from=date_from,
+            date_to=date_to,
+            name=None if name_filter == "すべて" else name_filter,
+            keyword=keyword.strip() or None,
+        )
+        st.markdown(f"🔍 検索結果: **{len(df)} 件**（{date_from:%Y/%m/%d} 〜 {date_to:%Y/%m/%d}）")
+        if df.empty:
+            st.info("該当する日報が見つかりませんでした。条件を変えてお試しください。")
+            return
+    else:
+        df = db.get_reports(name=None if is_admin else current_user)
+        if df.empty:
+            st.info("まだ日報がありません。")
+            return
+        df = df.head(20)
+        st.markdown(f"🕒 **最新の日報**（直近 {len(df)} 件・新しい順）")
 
     # テーブル表示用に長文を省略
     df["勤務時間"] = df.apply(
