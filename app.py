@@ -273,8 +273,46 @@ div[data-testid="stExpander"] summary {
 ::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
 ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
+/* モバイル専用ナビ（PCでは非表示） */
+.st-key-mobile_nav {
+    display: none;
+}
+
 /* スマートフォン向け（Android / iPhone） */
 @media (max-width: 640px) {
+    /* サイドバーは使わず、画面切り替え式のナビに */
+    section[data-testid="stSidebar"],
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="stExpandSidebarButton"] {
+        display: none !important;
+    }
+    .st-key-mobile_nav {
+        display: block;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 0.6rem 0.7rem 0.2rem;
+        margin-bottom: 1rem;
+    }
+    /* ナビをピル型ボタンに */
+    .st-key-mobile_nav [role="radiogroup"] {
+        gap: 0.4rem;
+        flex-wrap: wrap;
+    }
+    .st-key-mobile_nav [role="radiogroup"] label > div:first-child {
+        display: none;
+    }
+    .st-key-mobile_nav [role="radiogroup"] label {
+        border: 1px solid #475569;
+        border-radius: 999px;
+        padding: 0.3rem 0.75rem;
+        background: #0b1222;
+    }
+    .st-key-mobile_nav [role="radiogroup"] label:has(input:checked) {
+        background: linear-gradient(90deg, #4f46e5, #6366f1);
+        border-color: #6366f1;
+        font-weight: 700;
+    }
     [data-testid="stMain"] .block-container {
         padding: 1rem 0.9rem 1.5rem;
     }
@@ -1011,23 +1049,49 @@ def main():
         show_auth()
         return
 
+    def _logout():
+        token = st.query_params.get("token")
+        if token:
+            db.delete_session(token)
+            del st.query_params["token"]
+        st.session_state.logged_in = False
+        st.session_state.username = None
+        st.session_state.is_admin = False
+
+    nav_options = ["📝 日報提出", "📋 一覧・検索"]
+    if st.session_state.is_admin:
+        nav_options.append("👔 管理者機能")
+    nav_options.append("📊 エクスポート")
+    nav_options.append("⚙️ 設定")
+
+    # PCのサイドバーとモバイルのナビで選択ページを共有する
+    current = st.session_state.get("nav_page", nav_options[0])
+    if current not in nav_options:
+        current = nav_options[0]
+    st.session_state.nav_page = current
+    st.session_state.nav_sidebar = current
+    st.session_state.nav_mobile = current
+
+    def _nav_from_sidebar():
+        st.session_state.nav_page = st.session_state.nav_sidebar
+
+    def _nav_from_mobile():
+        st.session_state.nav_page = st.session_state.nav_mobile
+
+    today = date.today()
+    label = "👑 管理者" if st.session_state.is_admin else "一般ユーザー"
+
     with st.sidebar:
         st.title("📋 日報管理システム")
-        today = date.today()
         st.markdown(f"**{today:%Y年%m月%d日}（{WEEKDAY_JP[today.weekday()]}）**")
-        label = "👑 管理者" if st.session_state.is_admin else "一般ユーザー"
         st.caption(f"ログイン中: {st.session_state.username}（{label}）")
         st.divider()
 
-        nav_options = ["📝 日報提出", "📋 一覧・検索"]
-        if st.session_state.is_admin:
-            nav_options.append("👔 管理者機能")
-        nav_options.append("📊 エクスポート")
-        nav_options.append("⚙️ 設定")
-
-        page = st.radio(
+        st.radio(
             "ナビゲーション",
             nav_options,
+            key="nav_sidebar",
+            on_change=_nav_from_sidebar,
             label_visibility="collapsed",
         )
 
@@ -1048,16 +1112,33 @@ def main():
 
         st.divider()
         if st.button("ログアウト", use_container_width=True):
-            token = st.query_params.get("token")
-            if token:
-                db.delete_session(token)
-                del st.query_params["token"]
-            st.session_state.logged_in = False
-            st.session_state.username = None
-            st.session_state.is_admin = False
+            _logout()
             st.rerun()
 
         st.caption("Daily Report System v2.0")
+
+    # モバイル専用ナビ（CSSで640px以下のみ表示。サイドバーの代わりに画面を切り替える）
+    with st.container(key="mobile_nav"):
+        st.radio(
+            "ページ",
+            nav_options,
+            key="nav_mobile",
+            on_change=_nav_from_mobile,
+            horizontal=True,
+            label_visibility="collapsed",
+        )
+        mc1, mc2 = st.columns([3, 2])
+        with mc1:
+            st.caption(
+                f"👤 {st.session_state.username}（{label}）　"
+                f"{today:%m/%d}（{WEEKDAY_JP[today.weekday()]}）"
+            )
+        with mc2:
+            if st.button("ログアウト", key="logout_mobile", use_container_width=True):
+                _logout()
+                st.rerun()
+
+    page = st.session_state.nav_page
 
     if page == "📝 日報提出":
         show_submit()
