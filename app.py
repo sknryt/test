@@ -716,6 +716,10 @@ def show_admin():
 
     # 4. アカウント管理
     st.subheader("🔑 アカウント管理")
+    st.caption(
+        "トグルで管理者権限の付与・解除ができます。"
+        "アカウントを削除すると、そのユーザーの過去の日報データもすべて削除されます。"
+    )
 
     users_df = db.get_users()
     current_user = st.session_state.get("username")
@@ -729,17 +733,33 @@ def show_admin():
             c3.caption("（自分自身は変更できません）")
             continue
 
-        if u["is_admin"]:
-            if c3.button("管理者を解除", key=f"demote_{u['username']}"):
-                db.set_admin(u["username"], False)
-                st.rerun()
-        else:
-            if c3.button("管理者にする", key=f"promote_{u['username']}"):
-                db.set_admin(u["username"], True)
-                st.rerun()
+        new_admin = c3.toggle(
+            "管理者権限",
+            value=bool(u["is_admin"]),
+            key=f"admtoggle_{u['username']}",
+        )
+        if new_admin != bool(u["is_admin"]):
+            db.set_admin(u["username"], new_admin)
+            st.rerun()
 
         if c4.button("削除", key=f"deluser_{u['username']}", type="secondary"):
-            db.delete_user(u["username"])
+            st.session_state.confirm_delete_user = u["username"]
+            st.rerun()
+
+    # 削除の確認ステップ（日報データも消えるため）
+    target = st.session_state.get("confirm_delete_user")
+    if target and db.user_exists(target):
+        st.warning(
+            f"⚠️ 「{target}」のアカウントを削除すると、"
+            "過去の日報データもすべて削除されます。この操作は元に戻せません。"
+        )
+        cc1, cc2 = st.columns(2)
+        if cc1.button("完全に削除する", type="primary", key="confirm_del_yes", use_container_width=True):
+            db.delete_user(target)
+            st.session_state.pop("confirm_delete_user", None)
+            st.rerun()
+        if cc2.button("キャンセル", key="confirm_del_no", use_container_width=True):
+            st.session_state.pop("confirm_delete_user", None)
             st.rerun()
 
 

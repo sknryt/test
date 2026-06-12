@@ -240,6 +240,9 @@ def set_admin(username: str, is_admin: bool) -> None:
 
 
 def delete_user(username: str) -> None:
+    """アカウントを削除し、そのユーザーの日報・メンバー登録もすべて削除する。"""
     with _connect() as conn:
         conn.execute("DELETE FROM users WHERE username=?", (username,))
+        conn.execute("DELETE FROM reports WHERE name=?", (username,))
+        conn.execute("DELETE FROM members WHERE name=?", (username,))
         conn.commit()
